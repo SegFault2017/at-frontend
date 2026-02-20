@@ -1,0 +1,25 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+@import "tailwindcss";
+
+@theme {
+  --color-gruvbox-bg: #fbf1c7;
+  --color-gruvbox-bg-dark: #282828;
+  --color-gruvbox-bg-dark-soft: #32302f;
+  --color-gruvbox-fg: #3c3836;
+  --color-gruvbox-fg-light: #ebdbb2;
+  --color-gruvbox-orange: #d65d0e;
+  --color-gruvbox-green: #98971a;
+  --color-gruvbox-red: #cc241d;
+  --color-gruvbox-yellow: #d79921;
+  --color-gruvbox-aqua: #689d6a;
+  --color-gruvbox-gray: #a89984;
+  --color-gruvbox-gray-light: #d5c4a1;
+
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+body {
+  background-color: var(--color-gruvbox-bg);
+  color: var(--color-gruvbox-fg);
+}
