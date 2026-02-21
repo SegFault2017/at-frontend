@@ -1,4 +1,5 @@
 const AT_USER_URL = process.env.NEXT_PUBLIC_AT_USER_URL ?? "http://localhost:8001";
+const AT_TUTOR_URL = process.env.NEXT_PUBLIC_AT_TUTOR_URL ?? "http://localhost:8000";
 
 export async function syncUser(
   token: string,
@@ -32,7 +33,7 @@ export async function getMastery(token: string) {
 }
 
 export async function generateProblemSet(token: string, userId: string, mode: string) {
-  const resp = await fetch(`http://localhost:8000/api/problemset/generate`, {
+  const resp = await fetch(`${AT_TUTOR_URL}/api/problemset/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ user_id: userId, mode }),
