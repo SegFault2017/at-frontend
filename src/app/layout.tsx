@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "Algo Trainer",
@@ -17,7 +18,7 @@ export default function RootLayout({
         className="min-h-screen bg-gruvbox-bg text-gruvbox-fg antialiased"
         suppressHydrationWarning
       >
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

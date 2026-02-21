@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Problem } from "@/lib/api";
 
@@ -30,12 +30,8 @@ export default function ProblemPanel({
   const [activeTab, setActiveTab] = useState<"problem" | "examples">("problem");
   const [hintIndex, setHintIndex] = useState(0);
 
-  // Auto-navigate to latest hint when new hint arrives
-  useEffect(() => {
-    if (hints.length > 0) {
-      setHintIndex(hints.length - 1);
-    }
-  }, [hints.length]);
+  // Clamp hintIndex to valid range inline (avoids setState-in-effect lint rule)
+  const safeHintIndex = hints.length > 0 ? Math.min(hintIndex, hints.length - 1) : 0;
 
   if (isLoading) {
     return (
@@ -77,11 +73,11 @@ export default function ProblemPanel({
   // Hint navigation
   const isStreaming = !!streamingHint;
   const totalHints = hints.length + (isStreaming ? 1 : 0);
-  const displayIndex = isStreaming ? hints.length : hintIndex;
-  const currentHint = isStreaming ? streamingHint : hints[hintIndex];
+  const displayIndex = isStreaming ? hints.length : safeHintIndex;
+  const currentHint = isStreaming ? streamingHint : hints[safeHintIndex];
 
-  const canGoPrev = !isStreaming && hintIndex > 0;
-  const canGoNext = !isStreaming && hintIndex < hints.length - 1;
+  const canGoPrev = !isStreaming && safeHintIndex > 0;
+  const canGoNext = !isStreaming && safeHintIndex < hints.length - 1;
 
   return (
     <div className="flex h-full flex-col">
