@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   seconds: number;
@@ -7,15 +7,17 @@ interface Props {
 }
 
 export function Timer({ seconds, onExpire }: Props) {
+  // `key={currentIndex}` on the parent remounts this component for each problem,
+  // so useState initializes fresh and calledRef starts false on every problem.
   const [remaining, setRemaining] = useState(seconds);
-
-  useEffect(() => {
-    setRemaining(seconds);
-  }, [seconds]);
+  const calledRef = useRef(false);
 
   useEffect(() => {
     if (remaining <= 0) {
-      onExpire();
+      if (!calledRef.current) {
+        calledRef.current = true;
+        onExpire();
+      }
       return;
     }
     const id = setTimeout(() => setRemaining((r) => r - 1), 1000);

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { generateProblemSet, saveSession } from "@/lib/userClient";
 import type { ProblemEntry, ProblemSet, SessionPayload } from "@/lib/userClient";
@@ -13,20 +13,25 @@ export default function ProblemSetPage() {
   const [problemSet, setProblemSet] = useState<ProblemSet | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [sessionStart, setSessionStart] = useState<Date>(new Date());
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
+  // useRef avoids re-creating handleExpireOrSubmit on every sessionStart update
+  const sessionStartRef = useRef<Date>(new Date());
 
   async function handleGenerate() {
     if (!isSignedIn || !userId) return;
     setLoading(true);
+    setGenerateError(null);
     try {
       const token = await getToken();
       if (!token) return;
       const ps = await generateProblemSet(token, userId, mode);
+      sessionStartRef.current = new Date();
       setProblemSet(ps);
       setCurrentIndex(0);
-      setSessionStart(new Date());
       setCompleted(false);
+    } catch (e: unknown) {
+      setGenerateError(e instanceof Error ? e.message : "Failed to generate problem set");
     } finally {
       setLoading(false);
     }
@@ -42,9 +47,9 @@ export default function ProblemSetPage() {
       mode: "problem_set",
       topic_tags: [],
       problem_set_id: problemSet.id,
-      started_at: sessionStart.toISOString(),
+      started_at: sessionStartRef.current.toISOString(),
       completed_at: new Date().toISOString(),
-      time_taken_seconds: Math.floor((Date.now() - sessionStart.getTime()) / 1000),
+      time_taken_seconds: Math.floor((Date.now() - sessionStartRef.current.getTime()) / 1000),
       hints_used: 0,
       hint_level_reached: 0,
       attempts: 1,
@@ -54,12 +59,12 @@ export default function ProblemSetPage() {
     saveSession(token, payload).catch(console.error);
 
     if (currentIndex + 1 < problemSet.problems.length) {
+      sessionStartRef.current = new Date();
       setCurrentIndex((i) => i + 1);
-      setSessionStart(new Date());
     } else {
       setCompleted(true);
     }
-  }, [problemSet, currentIndex, isSignedIn, getToken, sessionStart]);
+  }, [problemSet, currentIndex, isSignedIn, getToken]);
 
   if (!isSignedIn) {
     return <div className="p-8 text-[#3c3836]">Please log in to use problem sets.</div>;
@@ -101,6 +106,9 @@ export default function ProblemSetPage() {
         >
           {loading ? "Generating..." : "Generate Problem Set"}
         </button>
+        {generateError && (
+          <p className="mt-3 text-sm text-red-500">{generateError}</p>
+        )}
       </div>
     );
   }
@@ -112,7 +120,11 @@ export default function ProblemSetPage() {
         <span className="text-[#7c6f64]">
           Problem {currentIndex + 1} of {problemSet.problems.length}
         </span>
-        <Timer seconds={current.time_limit_seconds} onExpire={handleExpireOrSubmit} />
+        <Timer
+          key={currentIndex}
+          seconds={current.time_limit_seconds}
+          onExpire={handleExpireOrSubmit}
+        />
       </div>
       <h2 className="text-xl font-bold text-[#3c3836] mb-4">{current.slug}</h2>
       <button
