@@ -23,7 +23,7 @@ export function MasteryChart({ data }: Props) {
           <div className="h-3 bg-[#ebdbb2] rounded-full overflow-hidden">
             <div
               className="h-full bg-[#458588] rounded-full transition-all"
-              style={{ width: `${entry.clean_solve_rate * 100}%` }}
+              style={{ width: `${Math.min(entry.clean_solve_rate * 100, 100)}%` }}
             />
           </div>
         </div>

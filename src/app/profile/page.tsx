@@ -8,24 +8,23 @@ import { MasteryChart } from "@/components/MasteryChart";
 export default function ProfilePage() {
   const { isSignedIn, getToken, isLoaded } = useAuth();
   const [mastery, setMastery] = useState<MasteryEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    const fetchData = !isSignedIn
-      ? Promise.resolve(null)
-      : getToken().then((token) => {
-          if (!token) throw new Error("No auth token");
-          return getMastery(token);
-        });
-    fetchData
-      .then((data) => {
-        if (data !== null) setMastery(data);
+    if (!isLoaded || !isSignedIn) return;
+    setLoading(true);
+    getToken()
+      .then((token) => {
+        if (!token) throw new Error("No auth token");
+        return getMastery(token);
       })
+      .then(setMastery)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load mastery"))
       .finally(() => setLoading(false));
-  }, [isLoaded, isSignedIn, getToken]);
+    // getToken is a Clerk utility — not a reactive value, excluded from deps intentionally
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, isSignedIn]);
 
   if (!isLoaded || loading) {
     return <div className="p-8 text-[#7c6f64]">Loading...</div>;
