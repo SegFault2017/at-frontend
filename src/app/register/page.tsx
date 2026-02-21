@@ -1,4 +1,4 @@
-import { SignUp } from "@clerk/nextjs";
+import { SignUp } from "@/components/AuthProvider";
 
 export default function RegisterPage() {
   return (
