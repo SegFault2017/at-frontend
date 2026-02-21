@@ -14,6 +14,7 @@ import {
 import type { Problem, TestCase } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { saveSession } from "@/lib/userClient";
+import type { SessionPayload } from "@/lib/userClient";
 import { ConfidenceModal } from "@/components/ConfidenceModal";
 
 export default function Home() {
@@ -41,6 +42,7 @@ export default function Home() {
   const { isSignedIn, getToken } = useAuth();
   const [showConfidence, setShowConfidence] = useState(false);
   const [sessionStart] = useState(() => new Date());
+  const [coreTestsPassed, setCoreTestsPassed] = useState(false);
 
   useEffect(() => {
     initializePyodide((status) => {
@@ -181,7 +183,9 @@ export default function Home() {
       setConsoleOutput(outputLines.filter(Boolean).join("\n"));
     }
     setRunningTests(false);
-    if (passedResults.length > 0 && passedResults.every(Boolean)) {
+    const allPassed = passedResults.length > 0 && passedResults.every(Boolean);
+    setCoreTestsPassed(allPassed);
+    if (allPassed) {
       setShowConfidence(true);
     }
   }
@@ -271,7 +275,7 @@ export default function Home() {
     if (!isSignedIn || !problem) return;
     const token = await getToken();
     if (!token) return;
-    await saveSession(token, {
+    const payload: SessionPayload = {
       slug: problem.slug,
       topic_tags: [],
       mode: "free",
@@ -281,9 +285,10 @@ export default function Home() {
       hints_used: hints.length,
       hint_level_reached: hints.length,
       attempts: 1,
-      passed_core_tests: true,
+      passed_core_tests: coreTestsPassed,
       confidence: rating,
-    }).catch(console.error); // non-blocking — don't interrupt the user flow
+    };
+    saveSession(token, payload).catch(console.error); // non-blocking — don't interrupt the user flow
   };
 
   return (

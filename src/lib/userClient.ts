@@ -43,7 +43,26 @@ export async function syncUser(
   return resp.json() as Promise<UserProfile>;
 }
 
-export async function saveSession(token: string, session: Record<string, unknown>): Promise<{ id: string }> {
+export interface SessionPayload {
+  slug: string;
+  topic_tags: string[];
+  mode: string;
+  problem_set_id?: string;
+  started_at: string;
+  completed_at: string;
+  time_taken_seconds: number;
+  hints_used: number;
+  hint_level_reached: number;
+  attempts: number;
+  passed_core_tests: boolean;
+  passed_edge_tests?: boolean;
+  solution_time_complexity?: string;
+  solution_space_complexity?: string;
+  is_optimal?: boolean;
+  confidence: number;
+}
+
+export async function saveSession(token: string, session: SessionPayload): Promise<{ id: string }> {
   const resp = await fetch(`${AT_USER_URL}/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
