@@ -5,11 +5,11 @@ export interface Problem {
   slug: string;
   difficulty: string;
   description: string;
-  summary: string;
   examples: { input: string; output: string; explanation?: string }[];
   constraints: string[];
   starter_code: string;
-  leetcode_hints?: string[];
+  hints: string[];
+  topic_tags: string[];
 }
 
 export interface TestCase {
@@ -65,14 +65,11 @@ export interface SubmitResult {
   results: HiddenTestResult[];
   time_limit_ms: number;
   error: string | null;
+  verdict: "accepted" | "wrong_answer" | "error";
+  first_failure: number | null; // index into results
 }
 
-export interface FailingCase {
-  input: string;
-  expected: string;
-  actual: string;
-  category: CaseCategory | null;
-}
+export type FailingCase = Pick<HiddenTestResult, "input" | "expected" | "actual" | "category">;
 
 export class ExecutorUnavailableError extends Error {}
 

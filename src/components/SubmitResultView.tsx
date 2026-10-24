@@ -4,7 +4,7 @@ import type { SubmitResult } from "@/lib/api";
 
 // Coaching view for a Submit (variant C of the prototype on branch prototype/submit-result).
 interface SubmitResultViewProps {
-  result: SubmitResult | "down";
+  result: SubmitResult;
   revealed: boolean;
   onReveal: () => void;
   onHint: () => void;
@@ -17,19 +17,18 @@ const Mono = ({ children }: { children: React.ReactNode }) => (
   <code className="block whitespace-pre-wrap break-all rounded bg-gruvbox-bg-dark px-2 py-1 font-mono text-xs text-gruvbox-fg-light">{children}</code>
 );
 
+const VERDICT = { accepted: "Accepted", wrong_answer: "Wrong Answer", error: "Error" };
+
 export default function SubmitResultView({ result: r, revealed, onReveal, onHint, onReview, hintDisabled, reviewLoading }: SubmitResultViewProps) {
-  if (r === "down") {
-    return <div className="rounded bg-gruvbox-yellow/20 px-3 py-2 text-sm text-gruvbox-yellow">Executor unavailable. Nothing was run. Try again.</div>;
-  }
-  const first = r.results.find((c) => !c.passed && c.status !== "skipped");
+  const first = r.first_failure === null ? undefined : r.results[r.first_failure];
   // A per-case crash or timeout is the learner's error too; its actual holds the message, not test data
-  const error = r.error ?? (first && (first.status === "tle" || first.status === "error") ? first.actual : null);
-  const ok = !error && r.failed === 0 && r.passed === r.total;
+  const error = r.verdict === "error" ? r.error ?? first?.actual : null;
+  const ok = r.verdict === "accepted";
   const cats = ["normal", "edge", "stress"] as const;
   return (
     <div className="space-y-3">
       <div className={`rounded px-3 py-2 text-sm font-semibold ${ok ? "bg-gruvbox-green/20 text-gruvbox-green" : "bg-gruvbox-red/15 text-gruvbox-red"}`}>
-        {error ? "Error" : ok ? "Accepted" : "Wrong Answer"} · {r.passed}/{r.total} passed · {Math.round(r.runtime_ms)} ms
+        {VERDICT[r.verdict]} · {r.passed}/{r.total} passed · {Math.round(r.runtime_ms)} ms
       </div>
       {error && <Mono>{error}</Mono>}
       <div className="space-y-1.5">
