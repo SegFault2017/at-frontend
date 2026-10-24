@@ -32,18 +32,58 @@ export interface HintResponse {
 export interface ReviewResponse {
   status: string;
   feedback: string;
+  time_complexity?: string;
+  space_complexity?: string;
+  is_optimal?: boolean;
   cost_usd?: number;
 }
 
-export async function fetchProblem(
-  slug: string,
-  leetcodeSession?: string
-): Promise<Problem> {
-  const url = new URL(`${API_BASE}/api/problem/${slug}`);
-  if (leetcodeSession) {
-    url.searchParams.set("leetcode_session", leetcodeSession);
-  }
-  const res = await fetch(url.toString());
+export interface ProblemListItem {
+  slug: string;
+  title: string;
+  difficulty: string;
+}
+
+export type CaseCategory = "normal" | "edge" | "stress";
+
+export interface HiddenTestResult {
+  input: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  runtime_ms: number;
+  status: "passed" | "wrong" | "error" | "tle" | "skipped";
+  category: CaseCategory | null;
+}
+
+/** The /api/submit body, relayed unchanged from the executor. */
+export interface SubmitResult {
+  passed: number;
+  failed: number;
+  total: number;
+  runtime_ms: number;
+  results: HiddenTestResult[];
+  time_limit_ms: number;
+  error: string | null;
+}
+
+export interface FailingCase {
+  input: string;
+  expected: string;
+  actual: string;
+  category: CaseCategory | null;
+}
+
+export class ExecutorUnavailableError extends Error {}
+
+export async function fetchProblems(): Promise<ProblemListItem[]> {
+  const res = await fetch(`${API_BASE}/api/problems`);
+  if (!res.ok) throw new Error(`Failed to fetch problems (${res.status})`);
+  return res.json();
+}
+
+export async function fetchProblem(slug: string): Promise<Problem> {
+  const res = await fetch(`${API_BASE}/api/problem/${encodeURIComponent(slug)}`);
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
     throw new Error(detail.detail || `Failed to fetch problem (${res.status})`);
@@ -67,7 +107,8 @@ export async function fetchHintStream(
   onChunk: (text: string) => void,
   onDone: () => void,
   leetcodeHints: string[] = [],
-  onCost?: (costUsd: number) => void
+  onCost?: (costUsd: number) => void,
+  failingCase?: FailingCase
 ): Promise<void> {
   const res = await fetch(`${API_BASE}/api/hint/stream`, {
     method: "POST",
@@ -79,6 +120,7 @@ export async function fetchHintStream(
       hint_level: hintLevel,
       previous_hints: previousHints,
       leetcode_hints: leetcodeHints,
+      failing_case: failingCase ?? null,
     }),
   });
 
@@ -141,23 +183,34 @@ export async function pregenerateHints(
   });
 }
 
+export async function submitCode(slug: string, code: string): Promise<SubmitResult> {
+  const res = await fetch(`${API_BASE}/api/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ slug, code }),
+  });
+  if (res.status === 502) throw new ExecutorUnavailableError("executor unavailable");
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.detail || `Submit failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function fetchReview(
+  slug: string,
   problemSummary: string,
   userCode: string,
-  testResults: {
-    input: string;
-    expected: string;
-    actual: string;
-    passed: boolean;
-  }[]
+  submission: SubmitResult
 ): Promise<ReviewResponse> {
   const res = await fetch(`${API_BASE}/api/review`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      slug,
       problem_summary: problemSummary,
       user_code: userCode,
-      test_results: testResults,
+      submission,
     }),
   });
   if (!res.ok) throw new Error("Failed to get review");

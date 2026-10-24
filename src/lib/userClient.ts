@@ -60,6 +60,10 @@ export interface SessionPayload {
   solution_space_complexity?: string;
   is_optimal?: boolean;
   confidence: number;
+  hidden_tests_passed?: number;
+  hidden_tests_failed?: number;
+  hidden_tests_total?: number;
+  runtime_ms?: number;
 }
 
 export async function saveSession(token: string, session: SessionPayload): Promise<{ id: string }> {
