@@ -21,15 +21,17 @@ export default function SubmitResultView({ result: r, revealed, onReveal, onHint
   if (r === "down") {
     return <div className="rounded bg-gruvbox-yellow/20 px-3 py-2 text-sm text-gruvbox-yellow">Executor unavailable. Nothing was run. Try again.</div>;
   }
-  const ok = !r.error && r.failed === 0 && r.passed === r.total;
   const first = r.results.find((c) => !c.passed && c.status !== "skipped");
+  // A per-case crash or timeout is the learner's error too; its actual holds the message, not test data
+  const error = r.error ?? (first && (first.status === "tle" || first.status === "error") ? first.actual : null);
+  const ok = !error && r.failed === 0 && r.passed === r.total;
   const cats = ["normal", "edge", "stress"] as const;
   return (
     <div className="space-y-3">
       <div className={`rounded px-3 py-2 text-sm font-semibold ${ok ? "bg-gruvbox-green/20 text-gruvbox-green" : "bg-gruvbox-red/15 text-gruvbox-red"}`}>
-        {r.error ? "Error" : ok ? "Accepted" : "Wrong Answer"} · {r.passed}/{r.total} passed · {r.runtime_ms} ms
+        {error ? "Error" : ok ? "Accepted" : "Wrong Answer"} · {r.passed}/{r.total} passed · {Math.round(r.runtime_ms)} ms
       </div>
-      {r.error && <Mono>{r.error}</Mono>}
+      {error && <Mono>{error}</Mono>}
       <div className="space-y-1.5">
         {cats.map((k) => {
           const g = r.results.filter((c) => c.category === k);
