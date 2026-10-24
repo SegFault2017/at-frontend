@@ -379,16 +379,9 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel — Problem description */}
         <div className="w-1/2 overflow-y-auto border-r border-gruvbox-gray-light">
-          <ProblemPanel
-            problem={problem}
-            hints={hints}
-            streamingHint={streamingHint}
-            review={review}
-            isLoading={problemLoading}
-            error={problemError}
-          />
+          {/* Above the problem text: ProblemPanel fills the column, so anything below it is off-screen */}
           {(submission || submitError) && (
-            <div className="px-6 pb-6">
+            <div className="px-6 pt-6">
               {submitError ? (
                 <div className="rounded bg-gruvbox-red/15 px-3 py-2 text-sm text-gruvbox-red">{submitError}</div>
               ) : submission && (
@@ -404,6 +397,14 @@ export default function Home() {
               )}
             </div>
           )}
+          <ProblemPanel
+            problem={problem}
+            hints={hints}
+            streamingHint={streamingHint}
+            review={review}
+            isLoading={problemLoading}
+            error={problemError}
+          />
         </div>
 
         {/* Right panel — Editor + Console */}
