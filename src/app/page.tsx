@@ -5,13 +5,16 @@ import CodeEditor from "@/components/CodeEditor";
 import ConsoleOutput from "@/components/ConsoleOutput";
 import ProblemPanel from "@/components/ProblemPanel";
 import { runPython, terminateWorker, initializePyodide, retryInitialization } from "@/lib/pyodideRunner";
+import SubmitResultView from "@/components/SubmitResultView";
 import {
   fetchProblem,
+  fetchProblems,
   fetchHintStream,
   fetchReview,
   pregenerateHints,
 } from "@/lib/api";
-import type { Problem, TestCase } from "@/lib/api";
+import type { FailingCase, Problem, ProblemListItem, TestCase } from "@/lib/api";
+import { useSubmit } from "@/lib/useSubmit";
 import { useAuth } from "@/components/AuthProvider";
 import { saveSession } from "@/lib/userClient";
 import type { SessionPayload } from "@/lib/userClient";
@@ -19,6 +22,7 @@ import { ConfidenceModal } from "@/components/ConfidenceModal";
 
 export default function Home() {
   const [slugInput, setSlugInput] = useState("");
+  const [catalog, setCatalog] = useState<ProblemListItem[]>([]);
   const [problem, setProblem] = useState<Problem | null>(null);
   const [problemLoading, setProblemLoading] = useState(false);
   const [problemError, setProblemError] = useState<string | null>(null);
@@ -30,7 +34,8 @@ export default function Home() {
   const [streamingHint, setStreamingHint] = useState("");
   const [hintLoading, setHintLoading] = useState(false);
 
-  const [review, setReview] = useState<string | null>(null);
+  const sub = useSubmit();
+  const done = sub.state.kind === "done" ? sub.state : null;
   const [reviewLoading, setReviewLoading] = useState(false);
   const [totalCost, setTotalCost] = useState(0);
 
@@ -42,7 +47,10 @@ export default function Home() {
   const { isSignedIn, getToken } = useAuth();
   const [showConfidence, setShowConfidence] = useState(false);
   const [sessionStart] = useState(() => new Date());
-  const [coreTestsPassed, setCoreTestsPassed] = useState(false);
+
+  useEffect(() => {
+    fetchProblems().then(setCatalog).catch(() => setProblemError("Failed to load problem list"));
+  }, []);
 
   useEffect(() => {
     initializePyodide((status) => {
@@ -60,15 +68,7 @@ export default function Home() {
   // Dev helper: Load Two Sum with working solution for quick testing
   async function handleLoadTwoSumTest() {
     setSlugInput("two-sum");
-    setProblemLoading(true);
-    setProblemError(null);
-    setHints([]);
-    setStreamingHint("");
-    setReview(null);
-    setTestCases([]);
-    setConsoleOutput("");
-
-    const twoSumSolution = `class Solution:
+    if (await handleLoadProblem("two-sum")) setCode(`class Solution:
     def twoSum(self, nums: list[int], target: int) -> list[int]:
         seen = {}
         for i, num in enumerate(nums):
@@ -77,42 +77,21 @@ export default function Home() {
                 return [seen[complement], i]
             seen[num] = i
         return []
-`;
-
-    try {
-      const p = await fetchProblem("two-sum");
-      setProblem(p);
-      setCode(twoSumSolution);
-
-      const initialTestCases: TestCase[] = p.examples.map((ex, i) => ({
-        id: `example-${i}`,
-        input: ex.input || "",
-        expected: ex.output || "",
-        passed: null,
-        status: 'pending',
-        isCustom: false,
-      }));
-      setTestCases(initialTestCases);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setProblemError(message);
-    } finally {
-      setProblemLoading(false);
-    }
+`);
   }
 
-  async function handleLoadProblem() {
-    if (!slugInput.trim()) return;
+  async function handleLoadProblem(slug = slugInput.trim()) {
+    if (!slug) return;
     setProblemLoading(true);
     setProblemError(null);
     setHints([]);
     setStreamingHint("");
-    setReview(null);
     setTestCases([]);
     setConsoleOutput("");
+    sub.reset();
 
     try {
-      const p = await fetchProblem(slugInput.trim());
+      const p = await fetchProblem(slug);
       setProblem(p);
       const starterCode = p.starter_code ? p.starter_code + "\n" : code;
       setCode(starterCode);
@@ -129,10 +108,12 @@ export default function Home() {
       setTestCases(initialTestCases);
 
       // Pre-generate hints in the background (fire and forget)
-      pregenerateHints(p.summary, p.description, starterCode);
+      pregenerateHints(p.title, p.description, starterCode);
+      return true;
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setProblemError(message);
+      return false;
     } finally {
       setProblemLoading(false);
     }
@@ -153,7 +134,6 @@ export default function Home() {
     );
 
     const outputLines: string[] = [];
-    const passedResults: boolean[] = [];
 
     // Run tests sequentially to avoid stdout race condition
     // (Pyodide's setStdout is global - parallel execution causes handlers to overwrite each other)
@@ -166,7 +146,6 @@ export default function Home() {
       const { stdout, error } = await runPython(testCode);
       const actual = error ? `Error: ${error}` : (stdout?.trim() || "");
       const passed = !error && normalizeOutput(actual) === normalizeOutput(tc.expected);
-      passedResults.push(passed);
 
       // Update this specific test case immediately
       setTestCases((prev) =>
@@ -183,11 +162,6 @@ export default function Home() {
       setConsoleOutput(outputLines.filter(Boolean).join("\n"));
     }
     setRunningTests(false);
-    const allPassed = passedResults.length > 0 && passedResults.every(Boolean);
-    setCoreTestsPassed(allPassed);
-    if (allPassed) {
-      setShowConfidence(true);
-    }
   }
 
   function addTestCase(input: string, expected: string) {
@@ -206,7 +180,14 @@ export default function Home() {
     setTestCases((prev) => prev.filter((tc) => tc.id !== id));
   }
 
-  async function handleGetHint() {
+  async function handleSubmit() {
+    if (!problem) return;
+    const res = await sub.submit(problem.slug, code);
+    // Only the executor's verdict counts as solved
+    if (res?.verdict === "accepted") setShowConfidence(true);
+  }
+
+  async function handleGetHint(failingCase?: FailingCase) {
     if (!problem) return;
     const level = hints.length + 1;
     setHintLoading(true);
@@ -215,7 +196,7 @@ export default function Home() {
     try {
       let fullHint = "";
       await fetchHintStream(
-        problem.summary,
+        problem.title,
         problem.description,
         code,
         level,
@@ -232,9 +213,10 @@ export default function Home() {
           setHintLoading(false);
         },
         // Pass LeetCode official hints for context
-        problem.leetcode_hints || [],
+        problem.hints,
         // onCost: accumulate token cost
-        (cost) => setTotalCost((prev) => prev + cost)
+        (cost) => setTotalCost((prev) => prev + cost),
+        failingCase
       );
     } catch {
       setHints((prev) => [...prev, "Failed to get hint. Please try again."]);
@@ -244,27 +226,15 @@ export default function Home() {
   }
 
   async function handleReview() {
-    if (!problem) return;
+    if (!problem || !done) return;
     setReviewLoading(true);
 
-    // Run the code first to get test results
-    const { stdout, error } = await runPython(code);
-
-    const testResults = [
-      {
-        input: "code execution",
-        expected: "no errors",
-        actual: error || stdout || "completed",
-        passed: !error,
-      },
-    ];
-
     try {
-      const res = await fetchReview(problem.summary, code, testResults);
-      setReview(res.feedback);
+      const res = await fetchReview(problem.slug, problem.title, code, done.result);
+      sub.setReview(res);
       if (res.cost_usd) setTotalCost((prev) => prev + res.cost_usd!);
     } catch {
-      setReview("Failed to get review. Please try again.");
+      sub.setReview({ status: "error", feedback: "Failed to get review. Please try again." });
     } finally {
       setReviewLoading(false);
     }
@@ -285,8 +255,17 @@ export default function Home() {
       hints_used: hints.length,
       hint_level_reached: hints.length,
       attempts: 1,
-      passed_core_tests: coreTestsPassed,
+      passed_core_tests: true, // the modal only opens on an Accepted Submit
       confidence: rating,
+      solution_time_complexity: done?.review?.time_complexity,
+      solution_space_complexity: done?.review?.space_complexity,
+      is_optimal: done?.review?.is_optimal,
+      ...(done && {
+        hidden_tests_passed: done.result.passed,
+        hidden_tests_failed: done.result.failed,
+        hidden_tests_total: done.result.total,
+        runtime_ms: done.result.runtime_ms,
+      }),
     };
     saveSession(token, payload).catch(console.error); // non-blocking — don't interrupt the user flow
   };
@@ -301,14 +280,25 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <input
             type="text"
+            list="problem-catalog"
             value={slugInput}
-            onChange={(e) => setSlugInput(e.target.value)}
+            onChange={(e) => {
+              setSlugInput(e.target.value);
+              // Picking a datalist option sets the value to an exact slug
+              if (catalog.some((c) => c.slug === e.target.value)) handleLoadProblem(e.target.value);
+            }}
             onKeyDown={(e) => e.key === "Enter" && handleLoadProblem()}
-            placeholder="Problem # or slug (e.g. two-sum)"
+            placeholder={`Search ${catalog.length} problems`}
+            aria-label="Search problems"
             className="w-72 rounded-lg border border-gruvbox-gray bg-white px-3 py-1.5 font-mono text-sm text-gruvbox-fg placeholder-gruvbox-gray focus:border-gruvbox-orange focus:outline-none"
           />
+          <datalist id="problem-catalog">
+            {catalog.map((c) => (
+              <option key={c.slug} value={c.slug}>{`${c.title} · ${c.difficulty}`}</option>
+            ))}
+          </datalist>
           <button
-            onClick={handleLoadProblem}
+            onClick={() => handleLoadProblem()}
             disabled={problemLoading}
             className="rounded-lg bg-gruvbox-orange px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
@@ -329,11 +319,33 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel — Problem description */}
         <div className="w-1/2 overflow-y-auto border-r border-gruvbox-gray-light">
+          {/* Above the problem text: ProblemPanel fills the column, so anything below it is off-screen */}
+          {sub.state.kind !== "idle" && (
+            <div className="px-6 pt-6">
+              {sub.state.kind === "down" && (
+                <div className="rounded bg-gruvbox-yellow/20 px-3 py-2 text-sm text-gruvbox-yellow">Executor unavailable. Nothing was run. Try again.</div>
+              )}
+              {sub.state.kind === "failed" && (
+                <div className="rounded bg-gruvbox-red/15 px-3 py-2 text-sm text-gruvbox-red">{sub.state.message}</div>
+              )}
+              {done && (
+                <SubmitResultView
+                  result={done.result}
+                  revealed={done.revealed}
+                  onReveal={sub.reveal}
+                  onHint={() => handleGetHint(sub.failingCase)}
+                  onReview={handleReview}
+                  hintDisabled={hintLoading || hints.length >= 8}
+                  reviewLoading={reviewLoading}
+                />
+              )}
+            </div>
+          )}
           <ProblemPanel
             problem={problem}
             hints={hints}
             streamingHint={streamingHint}
-            review={review}
+            review={done?.review?.feedback ?? null}
             isLoading={problemLoading}
             error={problemError}
           />
@@ -375,11 +387,11 @@ export default function Home() {
               ? "Initializing Python..."
               : runningTests
               ? `Running ${completedTests}/${testCases.length}...`
-              : `Run Tests (${testCases.length})`}
+              : `Run Examples (${testCases.length}) · advisory`}
           </button>
         )}
         <button
-          onClick={handleGetHint}
+          onClick={() => handleGetHint()}
           disabled={!problem || hintLoading || hints.length >= 8}
           className="rounded-lg bg-gruvbox-yellow px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
@@ -390,11 +402,11 @@ export default function Home() {
             : `Get Hint${problem ? ` (Level ${hints.length + 1})` : ""}`}
         </button>
         <button
-          onClick={handleReview}
-          disabled={!problem || reviewLoading}
+          onClick={handleSubmit}
+          disabled={!problem || sub.submitting}
           className="rounded-lg bg-gruvbox-aqua px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {reviewLoading ? "Reviewing..." : "Submit & Review"}
+          {sub.submitting ? "Submitting..." : "Submit"}
         </button>
         {totalCost > 0 && (
           <span className="ml-auto font-mono text-xs text-gruvbox-gray">

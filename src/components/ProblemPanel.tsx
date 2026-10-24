@@ -60,7 +60,7 @@ export default function ProblemPanel({
         <div className="text-center text-gruvbox-gray">
           <p className="text-lg">No problem loaded</p>
           <p className="mt-1 text-sm">
-            Enter a LeetCode problem slug above (e.g., two-sum)
+            Search the problem list above
           </p>
         </div>
       </div>
