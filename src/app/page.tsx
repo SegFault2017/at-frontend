@@ -12,6 +12,10 @@ import {
   pregenerateHints,
 } from "@/lib/api";
 import type { Problem, TestCase } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
+import { saveSession } from "@/lib/userClient";
+import type { SessionPayload } from "@/lib/userClient";
+import { ConfidenceModal } from "@/components/ConfidenceModal";
 
 export default function Home() {
   const [slugInput, setSlugInput] = useState("");
@@ -34,6 +38,11 @@ export default function Home() {
   const [runningTests, setRunningTests] = useState(false);
   const [completedTests, setCompletedTests] = useState(0);
   const [pyodideStatus, setPyodideStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  const { isSignedIn, getToken } = useAuth();
+  const [showConfidence, setShowConfidence] = useState(false);
+  const [sessionStart] = useState(() => new Date());
+  const [coreTestsPassed, setCoreTestsPassed] = useState(false);
 
   useEffect(() => {
     initializePyodide((status) => {
@@ -144,6 +153,7 @@ export default function Home() {
     );
 
     const outputLines: string[] = [];
+    const passedResults: boolean[] = [];
 
     // Run tests sequentially to avoid stdout race condition
     // (Pyodide's setStdout is global - parallel execution causes handlers to overwrite each other)
@@ -156,6 +166,7 @@ export default function Home() {
       const { stdout, error } = await runPython(testCode);
       const actual = error ? `Error: ${error}` : (stdout?.trim() || "");
       const passed = !error && normalizeOutput(actual) === normalizeOutput(tc.expected);
+      passedResults.push(passed);
 
       // Update this specific test case immediately
       setTestCases((prev) =>
@@ -172,6 +183,11 @@ export default function Home() {
       setConsoleOutput(outputLines.filter(Boolean).join("\n"));
     }
     setRunningTests(false);
+    const allPassed = passedResults.length > 0 && passedResults.every(Boolean);
+    setCoreTestsPassed(allPassed);
+    if (allPassed) {
+      setShowConfidence(true);
+    }
   }
 
   function addTestCase(input: string, expected: string) {
@@ -253,6 +269,27 @@ export default function Home() {
       setReviewLoading(false);
     }
   }
+
+  const handleConfidenceSubmit = async (rating: number) => {
+    setShowConfidence(false);
+    if (!isSignedIn || !problem) return;
+    const token = await getToken();
+    if (!token) return;
+    const payload: SessionPayload = {
+      slug: problem.slug,
+      topic_tags: [],
+      mode: "free",
+      started_at: sessionStart.toISOString(),
+      completed_at: new Date().toISOString(),
+      time_taken_seconds: Math.floor((Date.now() - sessionStart.getTime()) / 1000),
+      hints_used: hints.length,
+      hint_level_reached: hints.length,
+      attempts: 1,
+      passed_core_tests: coreTestsPassed,
+      confidence: rating,
+    };
+    saveSession(token, payload).catch(console.error); // non-blocking — don't interrupt the user flow
+  };
 
   return (
     <div className="flex h-screen flex-col">
@@ -365,6 +402,7 @@ export default function Home() {
           </span>
         )}
       </footer>
+      {showConfidence && <ConfidenceModal onSubmit={handleConfidenceSubmit} />}
     </div>
   );
 }
