@@ -12,10 +12,9 @@ import {
   fetchHintStream,
   fetchReview,
   pregenerateHints,
-  submitCode,
-  ExecutorUnavailableError,
 } from "@/lib/api";
-import type { Problem, ProblemListItem, TestCase, SubmitResult, ReviewResponse } from "@/lib/api";
+import type { FailingCase, Problem, ProblemListItem, TestCase } from "@/lib/api";
+import { useSubmit } from "@/lib/useSubmit";
 import { useAuth } from "@/components/AuthProvider";
 import { saveSession } from "@/lib/userClient";
 import type { SessionPayload } from "@/lib/userClient";
@@ -35,12 +34,8 @@ export default function Home() {
   const [streamingHint, setStreamingHint] = useState("");
   const [hintLoading, setHintLoading] = useState(false);
 
-  const [review, setReview] = useState<string | null>(null);
-  const [reviewData, setReviewData] = useState<ReviewResponse | null>(null);
-  const [submission, setSubmission] = useState<SubmitResult | "down" | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [revealed, setRevealed] = useState(false);
+  const sub = useSubmit();
+  const done = sub.state.kind === "done" ? sub.state : null;
   const [reviewLoading, setReviewLoading] = useState(false);
   const [totalCost, setTotalCost] = useState(0);
 
@@ -73,16 +68,7 @@ export default function Home() {
   // Dev helper: Load Two Sum with working solution for quick testing
   async function handleLoadTwoSumTest() {
     setSlugInput("two-sum");
-    setProblemLoading(true);
-    setProblemError(null);
-    setHints([]);
-    setStreamingHint("");
-    setReview(null);
-    setTestCases([]);
-    setConsoleOutput("");
-    resetSubmit();
-
-    const twoSumSolution = `class Solution:
+    if (await handleLoadProblem("two-sum")) setCode(`class Solution:
     def twoSum(self, nums: list[int], target: int) -> list[int]:
         seen = {}
         for i, num in enumerate(nums):
@@ -91,36 +77,7 @@ export default function Home() {
                 return [seen[complement], i]
             seen[num] = i
         return []
-`;
-
-    try {
-      const p = await fetchProblem("two-sum");
-      setProblem(p);
-      setCode(twoSumSolution);
-
-      const initialTestCases: TestCase[] = p.examples.map((ex, i) => ({
-        id: `example-${i}`,
-        input: ex.input || "",
-        expected: ex.output || "",
-        passed: null,
-        status: 'pending',
-        isCustom: false,
-      }));
-      setTestCases(initialTestCases);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setProblemError(message);
-    } finally {
-      setProblemLoading(false);
-    }
-  }
-
-  function resetSubmit() {
-    setSubmission(null);
-    setSubmitError(null);
-    setRevealed(false);
-    setReviewData(null);
-    setReview(null);
+`);
   }
 
   async function handleLoadProblem(slug = slugInput.trim()) {
@@ -129,10 +86,9 @@ export default function Home() {
     setProblemError(null);
     setHints([]);
     setStreamingHint("");
-    setReview(null);
     setTestCases([]);
     setConsoleOutput("");
-    resetSubmit();
+    sub.reset();
 
     try {
       const p = await fetchProblem(slug);
@@ -152,10 +108,12 @@ export default function Home() {
       setTestCases(initialTestCases);
 
       // Pre-generate hints in the background (fire and forget)
-      pregenerateHints(p.summary, p.description, starterCode);
+      pregenerateHints(p.title, p.description, starterCode);
+      return true;
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setProblemError(message);
+      return false;
     } finally {
       setProblemLoading(false);
     }
@@ -224,29 +182,12 @@ export default function Home() {
 
   async function handleSubmit() {
     if (!problem) return;
-    setSubmitting(true);
-    resetSubmit();
-    try {
-      const res = await submitCode(problem.slug, code);
-      setSubmission(res);
-      // Only the executor's verdict counts as solved
-      if (!res.error && res.failed === 0 && res.passed === res.total) setShowConfidence(true);
-    } catch (e: unknown) {
-      if (e instanceof ExecutorUnavailableError) setSubmission("down");
-      else setSubmitError(e instanceof Error ? e.message : "Submit failed");
-    } finally {
-      setSubmitting(false);
-    }
+    const res = await sub.submit(problem.slug, code);
+    // Only the executor's verdict counts as solved
+    if (res?.verdict === "accepted") setShowConfidence(true);
   }
 
-  // The model only sees the failing case once the learner has revealed it
-  function revealedFailingCase() {
-    if (!revealed || !submission || submission === "down") return undefined;
-    const c = submission.results.find((r) => !r.passed && r.status !== "skipped");
-    return c && { input: c.input, expected: c.expected, actual: c.actual, category: c.category };
-  }
-
-  async function handleGetHint(failingCase?: ReturnType<typeof revealedFailingCase>) {
+  async function handleGetHint(failingCase?: FailingCase) {
     if (!problem) return;
     const level = hints.length + 1;
     setHintLoading(true);
@@ -255,7 +196,7 @@ export default function Home() {
     try {
       let fullHint = "";
       await fetchHintStream(
-        problem.summary,
+        problem.title,
         problem.description,
         code,
         level,
@@ -272,7 +213,7 @@ export default function Home() {
           setHintLoading(false);
         },
         // Pass LeetCode official hints for context
-        problem.leetcode_hints || [],
+        problem.hints,
         // onCost: accumulate token cost
         (cost) => setTotalCost((prev) => prev + cost),
         failingCase
@@ -285,16 +226,15 @@ export default function Home() {
   }
 
   async function handleReview() {
-    if (!problem || !submission || submission === "down") return;
+    if (!problem || !done) return;
     setReviewLoading(true);
 
     try {
-      const res = await fetchReview(problem.slug, problem.summary, code, submission);
-      setReview(res.feedback);
-      setReviewData(res);
+      const res = await fetchReview(problem.slug, problem.title, code, done.result);
+      sub.setReview(res);
       if (res.cost_usd) setTotalCost((prev) => prev + res.cost_usd!);
     } catch {
-      setReview("Failed to get review. Please try again.");
+      sub.setReview({ status: "error", feedback: "Failed to get review. Please try again." });
     } finally {
       setReviewLoading(false);
     }
@@ -317,14 +257,14 @@ export default function Home() {
       attempts: 1,
       passed_core_tests: true, // the modal only opens on an Accepted Submit
       confidence: rating,
-      solution_time_complexity: reviewData?.time_complexity,
-      solution_space_complexity: reviewData?.space_complexity,
-      is_optimal: reviewData?.is_optimal,
-      ...(submission && submission !== "down" && {
-        hidden_tests_passed: submission.passed,
-        hidden_tests_failed: submission.failed,
-        hidden_tests_total: submission.total,
-        runtime_ms: submission.runtime_ms,
+      solution_time_complexity: done?.review?.time_complexity,
+      solution_space_complexity: done?.review?.space_complexity,
+      is_optimal: done?.review?.is_optimal,
+      ...(done && {
+        hidden_tests_passed: done.result.passed,
+        hidden_tests_failed: done.result.failed,
+        hidden_tests_total: done.result.total,
+        runtime_ms: done.result.runtime_ms,
       }),
     };
     saveSession(token, payload).catch(console.error); // non-blocking — don't interrupt the user flow
@@ -380,16 +320,20 @@ export default function Home() {
         {/* Left panel — Problem description */}
         <div className="w-1/2 overflow-y-auto border-r border-gruvbox-gray-light">
           {/* Above the problem text: ProblemPanel fills the column, so anything below it is off-screen */}
-          {(submission || submitError) && (
+          {sub.state.kind !== "idle" && (
             <div className="px-6 pt-6">
-              {submitError ? (
-                <div className="rounded bg-gruvbox-red/15 px-3 py-2 text-sm text-gruvbox-red">{submitError}</div>
-              ) : submission && (
+              {sub.state.kind === "down" && (
+                <div className="rounded bg-gruvbox-yellow/20 px-3 py-2 text-sm text-gruvbox-yellow">Executor unavailable. Nothing was run. Try again.</div>
+              )}
+              {sub.state.kind === "failed" && (
+                <div className="rounded bg-gruvbox-red/15 px-3 py-2 text-sm text-gruvbox-red">{sub.state.message}</div>
+              )}
+              {done && (
                 <SubmitResultView
-                  result={submission}
-                  revealed={revealed}
-                  onReveal={() => setRevealed(true)}
-                  onHint={() => handleGetHint(revealedFailingCase())}
+                  result={done.result}
+                  revealed={done.revealed}
+                  onReveal={sub.reveal}
+                  onHint={() => handleGetHint(sub.failingCase)}
                   onReview={handleReview}
                   hintDisabled={hintLoading || hints.length >= 8}
                   reviewLoading={reviewLoading}
@@ -401,7 +345,7 @@ export default function Home() {
             problem={problem}
             hints={hints}
             streamingHint={streamingHint}
-            review={review}
+            review={done?.review?.feedback ?? null}
             isLoading={problemLoading}
             error={problemError}
           />
@@ -459,10 +403,10 @@ export default function Home() {
         </button>
         <button
           onClick={handleSubmit}
-          disabled={!problem || submitting}
+          disabled={!problem || sub.submitting}
           className="rounded-lg bg-gruvbox-aqua px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? "Submitting..." : "Submit"}
+          {sub.submitting ? "Submitting..." : "Submit"}
         </button>
         {totalCost > 0 && (
           <span className="ml-auto font-mono text-xs text-gruvbox-gray">
