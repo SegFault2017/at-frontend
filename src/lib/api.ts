@@ -213,3 +213,26 @@ export async function fetchReview(
   if (!res.ok) throw new Error("Failed to get review");
   return res.json();
 }
+
+export type ProblemSetMode = "drill" | "interview_sim";
+
+export interface PlannedProblem {
+  slug: string;
+  title: string;
+  difficulty: string;
+  time_limit_seconds: number;
+}
+
+/** The tutor picks problems from the learner's Mastery rows without a model call. With no rows, it picks at random. */
+export async function generateProblemSet(
+  mode: ProblemSetMode,
+  mastery: { topic: string; clean_solve_rate: number }[]
+): Promise<{ mode: ProblemSetMode; basis: "mastery" | "random"; problems: PlannedProblem[] }> {
+  const res = await fetch(`${API_BASE}/api/problemset/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode, mastery }),
+  });
+  if (!res.ok) throw new Error(`Generate failed (${res.status})`);
+  return res.json();
+}

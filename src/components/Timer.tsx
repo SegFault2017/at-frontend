@@ -7,8 +7,6 @@ interface Props {
 }
 
 export function Timer({ seconds, onExpire }: Props) {
-  // `key={currentIndex}` on the parent remounts this component for each problem,
-  // so useState initializes fresh and calledRef starts false on every problem.
   const [remaining, setRemaining] = useState(seconds);
   const calledRef = useRef(false);
 
