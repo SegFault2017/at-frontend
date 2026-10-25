@@ -1,95 +1,79 @@
-const AT_USER_URL = process.env.NEXT_PUBLIC_AT_USER_URL ?? "http://localhost:8001";
-const AT_TUTOR_URL = process.env.NEXT_PUBLIC_AT_TUTOR_URL ?? "http://localhost:8000";
+import type { CaseCategory, PlannedProblem, SubmitResult } from "@/lib/api";
 
-export interface UserProfile {
-  id: string;
-  username: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-}
+const AT_USER_URL = process.env.NEXT_PUBLIC_AT_USER_URL ?? "http://localhost:8002";
 
 export interface MasteryEntry {
   topic: string;
-  sessions_count: number;
-  avg_time_seconds: number;
-  avg_hints: number;
+  attempts_count: number;
   clean_solve_rate: number;
-  last_solved_at: string;
-}
-
-export interface ProblemEntry {
-  slug: string;
-  time_limit_seconds: number;
+  // Null when the topic has no accepted Attempt yet
+  avg_time_seconds: number | null;
+  avg_hints: number | null;
+  last_solved_at: string | null;
 }
 
 export interface ProblemSet {
   id: string;
   mode: string;
-  status: string;
-  problems: ProblemEntry[];
+  problems: PlannedProblem[];
+  generated_at: string;
 }
 
-export async function syncUser(
-  token: string,
-  payload: { username: string; email: string; first_name?: string; last_name?: string }
-): Promise<UserProfile> {
-  const resp = await fetch(`${AT_USER_URL}/auth/sync`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
-  });
-  if (!resp.ok) throw new Error(`sync failed: ${resp.status}`);
-  return resp.json() as Promise<UserProfile>;
-}
-
-export interface SessionPayload {
+export interface AttemptPayload {
   slug: string;
   topic_tags: string[];
-  mode: string;
-  problem_set_id?: string;
+  problem_set_id?: string; // at-auth derives the Attempt's mode from this
   started_at: string;
-  completed_at: string;
-  time_taken_seconds: number;
+  submitted_at: string;
+  submit_index: number;
   hints_used: number;
-  hint_level_reached: number;
-  attempts: number;
-  passed_core_tests: boolean;
-  passed_edge_tests?: boolean;
-  solution_time_complexity?: string;
-  solution_space_complexity?: string;
-  is_optimal?: boolean;
-  confidence: number;
-  hidden_tests_passed?: number;
-  hidden_tests_failed?: number;
-  hidden_tests_total?: number;
-  runtime_ms?: number;
+  verdict: SubmitResult["verdict"];
+  passed: number;
+  failed: number;
+  total: number;
+  runtime_ms: number;
+  case_categories: Partial<Record<CaseCategory, { passed: number; total: number }>>;
+  confidence?: number; // 1 to 5, accepted only
 }
 
-export async function saveSession(token: string, session: SessionPayload): Promise<{ id: string }> {
-  const resp = await fetch(`${AT_USER_URL}/sessions`, {
-    method: "POST",
+/** One Attempt from a Submit the executor ran. `confidence` is added later, on accepted only. */
+export function attemptFrom(
+  result: SubmitResult,
+  ctx: Pick<AttemptPayload, "slug" | "topic_tags" | "problem_set_id" | "started_at" | "submit_index" | "hints_used">
+): AttemptPayload {
+  const case_categories: AttemptPayload["case_categories"] = {};
+  for (const r of result.results) {
+    if (!r.category) continue; // older suites have no categories
+    const count = (case_categories[r.category] ??= { passed: 0, total: 0 });
+    count.total += 1;
+    if (r.passed) count.passed += 1;
+  }
+  return {
+    ...ctx,
+    submitted_at: new Date().toISOString(),
+    verdict: result.verdict,
+    passed: result.passed,
+    failed: result.failed,
+    total: result.total,
+    runtime_ms: result.runtime_ms,
+    case_categories,
+  };
+}
+
+async function authed<T>(token: string, path: string, body?: unknown): Promise<T> {
+  const resp = await fetch(`${AT_USER_URL}${path}`, {
+    method: body === undefined ? "GET" : "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(session),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!resp.ok) throw new Error(`save session failed: ${resp.status}`);
-  return resp.json() as Promise<{ id: string }>;
+  if (!resp.ok) throw new Error(`${path} failed: ${resp.status}`);
+  return resp.json() as Promise<T>;
 }
 
-export async function getMastery(token: string): Promise<MasteryEntry[]> {
-  const resp = await fetch(`${AT_USER_URL}/users/me/mastery`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!resp.ok) throw new Error(`mastery fetch failed: ${resp.status}`);
-  return resp.json() as Promise<MasteryEntry[]>;
-}
+export const saveAttempt = (token: string, attempt: AttemptPayload) =>
+  authed<{ id: string }>(token, "/attempts", attempt);
 
-export async function generateProblemSet(token: string, userId: string, mode: string): Promise<ProblemSet> {
-  const resp = await fetch(`${AT_TUTOR_URL}/api/problemset/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ user_id: userId, mode }),
-  });
-  if (!resp.ok) throw new Error(`generate failed: ${resp.status}`);
-  return resp.json() as Promise<ProblemSet>;
-}
+export const getMastery = (token: string) => authed<MasteryEntry[]>(token, "/users/me/mastery");
+
+export const saveProblemSet = (token: string, mode: string, problems: PlannedProblem[]) =>
+  authed<ProblemSet>(token, "/problemsets", { mode, problems });
