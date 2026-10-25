@@ -39,5 +39,5 @@ export function useSubmit() {
     failingCase = { input, expected, actual, category };
   }
 
-  return { state, submitting, submit, reveal, setReview, reset: () => setState(IDLE), failingCase };
+  return { state, submitting, submit, reveal, setReview, failingCase };
 }

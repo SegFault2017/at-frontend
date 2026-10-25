@@ -36,7 +36,7 @@ export interface AttemptPayload {
   confidence?: number; // 1 to 5, accepted only
 }
 
-/** One Attempt from a Submit the executor ran. `confidence` is added later, on accepted only. */
+/** One Attempt from a Submit the executor ran. The caller adds `confidence` later, and only on an accepted Attempt. */
 export function attemptFrom(
   result: SubmitResult,
   ctx: Pick<AttemptPayload, "slug" | "topic_tags" | "problem_set_id" | "started_at" | "submit_index" | "hints_used">

@@ -21,7 +21,7 @@ export function useAuth() {
   return { isSignedIn, getToken, userId, isLoaded };
 }
 
-/** Right side of a page header: account links and Clerk's UserButton, or a sign-in link. */
+/** The right side of a page header. Signed in, it shows account links and Clerk's UserButton; signed out, a sign-in link. */
 export function HeaderAuth() {
   return (
     <div className="ml-auto flex items-center gap-4 text-sm">

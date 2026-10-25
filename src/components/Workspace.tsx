@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useImperativeHandle } from "react";
-import type { Ref } from "react";
+import { useState, useEffect } from "react";
 import CodeEditor from "@/components/CodeEditor";
 import ConsoleOutput from "@/components/ConsoleOutput";
 import ProblemPanel from "@/components/ProblemPanel";
 import SubmitResultView from "@/components/SubmitResultView";
 import { ConfidenceModal } from "@/components/ConfidenceModal";
+import { Timer } from "@/components/Timer";
 import { useAuth } from "@/components/AuthProvider";
 import { runPython, terminateWorker, initializePyodide, retryInitialization } from "@/lib/pyodideRunner";
 import { fetchProblem, fetchHintStream, fetchReview, pregenerateHints } from "@/lib/api";
@@ -15,24 +15,50 @@ import { useSubmit } from "@/lib/useSubmit";
 import { attemptFrom, saveAttempt } from "@/lib/userClient";
 import type { AttemptPayload } from "@/lib/userClient";
 
-export interface WorkspaceHandle {
-  submit: () => Promise<void>;
-}
+type PyodideStatus = 'loading' | 'ready' | 'error';
 
 interface Props {
   slug: string | null;
   initialCode?: string; // replaces the starter code once the problem loads
   problemSetId?: string;
-  ref?: Ref<WorkspaceHandle>;
+  timeLimitSeconds?: number; // when set, time running out submits the editor's code
 }
 
-/** Editor, Run, Submit, hints and review for one problem: free mode and each problem in a set. */
-export default function Workspace({ slug, initialCode, problemSetId, ref }: Props) {
+/** The editor, Run, Submit, hints and review for one problem. Free mode and each problem in a set both use it. */
+export default function Workspace(props: Props) {
+  const [pyodideStatus, setPyodideStatus] = useState<PyodideStatus>('loading');
+
+  // One Pyodide worker outlives every problem; restarting it per problem would take seconds
+  useEffect(() => {
+    initializePyodide(setPyodideStatus);
+    return () => terminateWorker();
+  }, []);
+
+  // A new key per problem gives each one fresh state, so nothing from the last problem carries over
+  return (
+    <ProblemSession
+      key={`${props.slug}:${props.initialCode ? "dev" : ""}`}
+      {...props}
+      pyodideStatus={pyodideStatus}
+      onRetryPyodide={() => retryInitialization(setPyodideStatus)}
+    />
+  );
+}
+
+function ProblemSession({
+  slug,
+  initialCode,
+  problemSetId,
+  timeLimitSeconds,
+  pyodideStatus,
+  onRetryPyodide,
+}: Props & { pyodideStatus: PyodideStatus; onRetryPyodide: () => void }) {
   const [problem, setProblem] = useState<Problem | null>(null);
-  const [problemLoading, setProblemLoading] = useState(false);
+  const [problemLoading, setProblemLoading] = useState(slug !== null);
   const [problemError, setProblemError] = useState<string | null>(null);
   const [openedAt, setOpenedAt] = useState(() => new Date());
   const [submitCount, setSubmitCount] = useState(0);
+  const [expired, setExpired] = useState(false);
 
   const [code, setCode] = useState("# Write your solution here\n\n");
   const [consoleOutput, setConsoleOutput] = useState("");
@@ -49,70 +75,37 @@ export default function Workspace({ slug, initialCode, problemSetId, ref }: Prop
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [runningTests, setRunningTests] = useState(false);
   const [completedTests, setCompletedTests] = useState(0);
-  const [pyodideStatus, setPyodideStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const { isSignedIn, getToken } = useAuth();
   // An accepted Attempt waits here until the learner rates their confidence
   const [pendingAttempt, setPendingAttempt] = useState<AttemptPayload | null>(null);
 
-  useImperativeHandle(ref, () => ({ submit: handleSubmit }));
-
+  // Runs once: the parent remounts this component for every problem
   useEffect(() => {
-    initializePyodide((status) => {
-      setPyodideStatus(status);
-    });
-    return () => terminateWorker();
-  }, []);
+    if (!slug) return;
+    fetchProblem(slug)
+      .then((p) => {
+        setProblem(p);
+        setOpenedAt(new Date());
+        const starterCode = initialCode ?? (p.starter_code ? p.starter_code + "\n" : "# Write your solution here\n\n");
+        setCode(starterCode);
 
-  useEffect(() => {
-    if (slug) handleLoadProblem(slug);
-    // handleLoadProblem reads the latest props itself; reload only when the problem changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // Convert examples to test cases
+        setTestCases(p.examples.map((ex, i) => ({
+          id: `example-${i}`,
+          input: ex.input || "",
+          expected: ex.output || "",
+          passed: null,
+          status: 'pending',
+          isCustom: false,
+        })));
+
+        // Pre-generate hints in the background (fire and forget)
+        pregenerateHints(p.title, p.description, starterCode);
+      })
+      .catch((e: unknown) => setProblemError(e instanceof Error ? e.message : "Unknown error"))
+      .finally(() => setProblemLoading(false));
   }, [slug, initialCode]);
-
-  function handleRetryPyodide() {
-    retryInitialization((status) => {
-      setPyodideStatus(status);
-    });
-  }
-
-  async function handleLoadProblem(slug: string) {
-    setProblemLoading(true);
-    setProblemError(null);
-    setHints([]);
-    setStreamingHint("");
-    setTestCases([]);
-    setConsoleOutput("");
-    setSubmitCount(0);
-    sub.reset();
-
-    try {
-      const p = await fetchProblem(slug);
-      setProblem(p);
-      setOpenedAt(new Date());
-      const starterCode = initialCode ?? (p.starter_code ? p.starter_code + "\n" : code);
-      setCode(starterCode);
-
-      // Convert examples to test cases
-      const initialTestCases: TestCase[] = p.examples.map((ex, i) => ({
-        id: `example-${i}`,
-        input: ex.input || "",
-        expected: ex.output || "",
-        passed: null,
-        status: 'pending',
-        isCustom: false,
-      }));
-      setTestCases(initialTestCases);
-
-      // Pre-generate hints in the background (fire and forget)
-      pregenerateHints(p.title, p.description, starterCode);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setProblemError(message);
-    } finally {
-      setProblemLoading(false);
-    }
-  }
 
   async function handleRunTests() {
     if (testCases.length === 0 || pyodideStatus !== 'ready') {
@@ -177,13 +170,13 @@ export default function Workspace({ slug, initialCode, problemSetId, ref }: Prop
 
   async function recordAttempt(attempt: AttemptPayload) {
     const token = await getToken();
-    if (token) saveAttempt(token, attempt).catch(console.error); // non-blocking — don't interrupt the user flow
+    if (token) saveAttempt(token, attempt).catch(console.error); // not awaited, so saving never holds up the learner
   }
 
   async function handleSubmit() {
     if (!problem) return;
     const res = await sub.submit(problem.slug, code);
-    // A Submit that never reached the executor (network error, 502) is not an Attempt
+    // A Submit that never reached the executor, after a network error or a 502, is not an Attempt
     if (!res) return;
     const submitIndex = submitCount + 1;
     setSubmitCount(submitIndex);
@@ -199,6 +192,12 @@ export default function Workspace({ slug, initialCode, problemSetId, ref }: Prop
     // Only the executor's verdict counts as solved, and only a solve asks for confidence
     if (res.verdict === "accepted") setPendingAttempt(attempt);
     else recordAttempt(attempt);
+  }
+
+  // When time runs out, grade the code in the editor instead of recording a made-up failure
+  function handleExpire() {
+    setExpired(true);
+    handleSubmit();
   }
 
   function handleConfidenceSubmit(rating: number) {
@@ -316,9 +315,15 @@ export default function Workspace({ slug, initialCode, problemSetId, ref }: Prop
 
       {/* Bottom toolbar */}
       <footer className="flex items-center gap-3 border-t border-gruvbox-gray-light px-6 py-3">
+        {timeLimitSeconds !== undefined && (
+          <div className="rounded bg-[#282828] px-3 py-1">
+            <Timer seconds={timeLimitSeconds} onExpire={handleExpire} />
+          </div>
+        )}
+        {expired && <span className="text-sm text-gruvbox-red">Time&apos;s up. Your code was submitted.</span>}
         {pyodideStatus === 'error' ? (
           <button
-            onClick={handleRetryPyodide}
+            onClick={onRetryPyodide}
             className="rounded-lg bg-gruvbox-red px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             Python Failed — Retry

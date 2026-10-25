@@ -1,23 +1,19 @@
 "use client";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { HeaderAuth, useAuth } from "@/components/AuthProvider";
 import { generateProblemSet } from "@/lib/api";
 import type { ProblemSetMode } from "@/lib/api";
 import { getMastery, saveProblemSet } from "@/lib/userClient";
 import type { ProblemSet } from "@/lib/userClient";
-import { Timer } from "@/components/Timer";
 import Workspace from "@/components/Workspace";
-import type { WorkspaceHandle } from "@/components/Workspace";
 
 export default function ProblemSetPage() {
   const { isSignedIn, getToken } = useAuth();
   const [mode, setMode] = useState<ProblemSetMode>("drill");
   const [problemSet, setProblemSet] = useState<ProblemSet | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [expired, setExpired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
-  const workspace = useRef<WorkspaceHandle>(null);
 
   async function handleGenerate() {
     setLoading(true);
@@ -27,25 +23,16 @@ export default function ProblemSetPage() {
       if (!token) throw new Error("No auth token");
       // The tutor picks the problems; at-auth saves the set under the signed-in learner
       const generated = await generateProblemSet(mode, await getMastery(token));
+      if (generated.problems.length === 0) {
+        throw new Error("No problems matched your weakest topics. Try Interview Simulation.");
+      }
       setProblemSet(await saveProblemSet(token, generated.mode, generated.problems));
       setCurrentIndex(0);
-      setExpired(false);
     } catch (e: unknown) {
       setGenerateError(e instanceof Error ? e.message : "Failed to generate problem set");
     } finally {
       setLoading(false);
     }
-  }
-
-  // Time's up: grade whatever is in the editor now, instead of recording a made-up failure
-  function handleExpire() {
-    setExpired(true);
-    workspace.current?.submit();
-  }
-
-  function handleNext() {
-    setCurrentIndex((i) => i + 1);
-    setExpired(false);
   }
 
   if (!isSignedIn) {
@@ -104,16 +91,19 @@ export default function ProblemSetPage() {
           Problem {currentIndex + 1} of {problemSet.problems.length}
         </span>
         <span className="font-medium text-[#3c3836]">{current.title} · {current.difficulty}</span>
-        <div className="rounded bg-[#282828] px-3 py-1">
-          <Timer key={currentIndex} seconds={current.time_limit_seconds} onExpire={handleExpire} />
-        </div>
-        {expired && <span className="text-sm text-gruvbox-red">Time&apos;s up. Your code was submitted.</span>}
-        <button onClick={handleNext} className="px-4 py-1.5 bg-[#458588] text-white text-sm rounded">
+        <button
+          onClick={() => setCurrentIndex((i) => i + 1)}
+          className="px-4 py-1.5 bg-[#458588] text-white text-sm rounded"
+        >
           {isLast ? "Finish" : "Next problem"}
         </button>
         <HeaderAuth />
       </header>
-      <Workspace ref={workspace} slug={current.slug} problemSetId={problemSet.id} />
+      <Workspace
+        slug={current.slug}
+        problemSetId={problemSet.id}
+        timeLimitSeconds={current.time_limit_seconds}
+      />
     </div>
   );
 }

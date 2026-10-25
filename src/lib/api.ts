@@ -223,7 +223,7 @@ export interface PlannedProblem {
   time_limit_seconds: number;
 }
 
-/** Pure on the tutor: picks problems from the learner's Mastery rows, random when there are none. */
+/** The tutor picks problems from the learner's Mastery rows without a model call. With no rows, it picks at random. */
 export async function generateProblemSet(
   mode: ProblemSetMode,
   mastery: { topic: string; clean_solve_rate: number }[]
