@@ -4,6 +4,16 @@ export interface RunResult {
   error: string | null;
 }
 
+/** Messages to the Pyodide worker. */
+export type ToWorker =
+  | { type: "setInterruptBuffer"; buffer: Uint8Array }
+  | { type: "run"; id: number; code: string };
+
+/** Messages from the Pyodide worker. */
+export type FromWorker = { type: "ready" } | ({ type: "result"; id: number } & RunResult);
+
+const send = (worker: Worker, msg: ToWorker) => worker.postMessage(msg);
+
 let _worker: Worker | null = null;
 let _interruptBuffer: Uint8Array | null = null;
 let _requestId = 0;
@@ -12,7 +22,7 @@ const _pending = new Map<
   { resolve: (r: RunResult) => void; reject: (e: Error) => void }
 >();
 
-type PyodideStatus = 'loading' | 'ready' | 'error';
+export type PyodideStatus = 'loading' | 'ready' | 'error';
 type StatusCallback = (status: PyodideStatus) => void;
 
 let _statusCallback: StatusCallback | null = null;
@@ -25,20 +35,24 @@ function getWorker(): Worker {
     new URL("../workers/pyodide.worker.ts", import.meta.url)
   );
 
-  _worker.onmessage = (event) => {
+  _worker.onmessage = (event: MessageEvent<FromWorker>) => {
     const msg = event.data;
-    if (msg.type === 'ready') {
-      _currentStatus = 'ready';
-      _statusCallback?.('ready');
-    } else if (msg.type === "result") {
-      const pending = _pending.get(msg.id);
-      if (pending) {
-        _pending.delete(msg.id);
-        pending.resolve({
-          result: msg.result ?? null,
-          stdout: msg.stdout ?? "",
-          error: msg.error ?? null,
-        });
+    switch (msg.type) {
+      case "ready":
+        _currentStatus = 'ready';
+        _statusCallback?.('ready');
+        break;
+      case "result": {
+        const pending = _pending.get(msg.id);
+        if (pending) {
+          _pending.delete(msg.id);
+          pending.resolve({ result: msg.result, stdout: msg.stdout, error: msg.error });
+        }
+        break;
+      }
+      default: {
+        const _exhaustive: never = msg;
+        void _exhaustive;
       }
     }
   };
@@ -54,10 +68,7 @@ function getWorker(): Worker {
 
   if (typeof SharedArrayBuffer !== "undefined") {
     _interruptBuffer = new Uint8Array(new SharedArrayBuffer(1));
-    _worker.postMessage({
-      type: "setInterruptBuffer",
-      buffer: _interruptBuffer,
-    });
+    send(_worker, { type: "setInterruptBuffer", buffer: _interruptBuffer });
   }
 
   return _worker;
@@ -124,7 +135,7 @@ export async function runPython(
     }
   }, timeoutMs);
 
-  worker.postMessage({ type: "run", id, code });
+  send(worker, { type: "run", id, code });
 
   try {
     const result = await resultPromise;

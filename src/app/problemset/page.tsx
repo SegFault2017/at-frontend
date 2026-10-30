@@ -58,7 +58,7 @@ export default function ProblemSetPage() {
       <div className="p-8">
         <h1 className="text-2xl font-bold mb-6 text-gruvbox-fg">AI Problem Set</h1>
         <div className="flex gap-4 mb-6">
-          {(["drill", "interview_sim"] as ProblemSetMode[]).map((m) => (
+          {(["drill", "interview_sim"] satisfies ProblemSetMode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
@@ -101,8 +101,7 @@ export default function ProblemSetPage() {
       </header>
       <Workspace
         slug={current.slug}
-        problemSetId={problemSet.id}
-        timeLimitSeconds={current.time_limit_seconds}
+        problemSet={{ id: problemSet.id, timeLimitSeconds: current.time_limit_seconds }}
       />
     </div>
   );

@@ -3,6 +3,20 @@
 import { useState } from "react";
 import type { TestCase } from "@/lib/api";
 
+type Tone = "pending" | "running" | "pass" | "fail";
+const ROW_TONE: Record<Tone, string> = {
+  pending: "",
+  running: "bg-gruvbox-yellow/10",
+  pass: "bg-gruvbox-green/10",
+  fail: "bg-gruvbox-red/10",
+};
+const BADGE_TONE: Record<Tone, string> = {
+  pending: "bg-gruvbox-gray/30 text-gruvbox-fg-light",
+  running: "bg-gruvbox-yellow/30 text-gruvbox-yellow",
+  pass: "bg-gruvbox-green/30 text-gruvbox-green",
+  fail: "bg-gruvbox-red/30 text-gruvbox-red",
+};
+
 interface ConsoleOutputProps {
   output: string;
   isRunning: boolean;
@@ -32,7 +46,7 @@ export default function ConsoleOutput({
     }
   };
 
-  const hasResults = testCases.some((tc) => tc.status !== "pending");
+  const hasResults = testCases.some((tc) => tc.run.kind !== "pending");
 
   return (
     <div className="flex h-full flex-col">
@@ -48,7 +62,7 @@ export default function ConsoleOutput({
         >
           Test Cases
           {testCases.length > 0 && (
-            <span className="ml-1.5 rounded-full bg-gruvbox-gray-light px-1.5 py-0.5 text-[10px]">
+            <span className="ml-1.5 rounded-full bg-gruvbox-gray-light px-1.5 py-0.5 text-xs">
               {testCases.length}
             </span>
           )}
@@ -119,7 +133,7 @@ export default function ConsoleOutput({
                 {testCases.map((tc, i) => (
                   <div key={tc.id} className="flex items-center justify-between px-3 py-1.5">
                     <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded bg-gruvbox-gray/20 text-[10px] text-gruvbox-fg-light">
+                      <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded bg-gruvbox-gray/20 text-xs text-gruvbox-fg-light">
                         {i + 1}
                       </span>
                       <span className="truncate font-mono text-xs text-gruvbox-fg-light">
@@ -158,47 +172,33 @@ export default function ConsoleOutput({
         <div className="flex-1 overflow-y-auto">
           {hasResults ? (
             <div className="divide-y divide-gruvbox-gray">
-              {testCases.map((tc, i) => (
-                <div
-                  key={tc.id}
-                  className={`px-3 py-1.5 ${
-                    tc.status === "running"
-                      ? "bg-gruvbox-yellow/10"
-                      : tc.passed === true
-                      ? "bg-gruvbox-green/10"
-                      : tc.passed === false
-                      ? "bg-gruvbox-red/10"
-                      : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-xs font-medium ${
-                        tc.status === "running"
-                          ? "bg-gruvbox-yellow/30 text-gruvbox-yellow"
-                          : tc.passed === true
-                          ? "bg-gruvbox-green/30 text-gruvbox-green"
-                          : tc.passed === false
-                          ? "bg-gruvbox-red/30 text-gruvbox-red"
-                          : "bg-gruvbox-gray/30 text-gruvbox-fg-light"
-                      }`}
-                    >
-                      {tc.status === "running" ? (
-                        <span className="animate-pulse">⏳</span>
-                      ) : tc.passed === true ? (
-                        "✓"
-                      ) : tc.passed === false ? (
-                        "✗"
-                      ) : (
-                        <span className="text-[10px]">{i + 1}</span>
-                      )}
-                    </span>
-                    <span className="font-mono text-xs text-gruvbox-fg-light">
-                      {tc.actual !== undefined ? tc.actual : "—"}
-                    </span>
+              {testCases.map((tc, i) => {
+                const { run } = tc;
+                const tone =
+                  run.kind === "running" ? "running" : run.kind === "done" ? (run.passed ? "pass" : "fail") : "pending";
+                return (
+                  <div key={tc.id} className={`px-3 py-1.5 ${ROW_TONE[tone]}`}>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-xs font-medium ${BADGE_TONE[tone]}`}
+                      >
+                        {tone === "running" ? (
+                          <span className="animate-pulse">⏳</span>
+                        ) : tone === "pass" ? (
+                          "✓"
+                        ) : tone === "fail" ? (
+                          "✗"
+                        ) : (
+                          <span className="text-xs">{i + 1}</span>
+                        )}
+                      </span>
+                      <span className="font-mono text-xs text-gruvbox-fg-light">
+                        {run.kind === "done" ? run.actual : "—"}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : output ? (
             <div className="p-3">

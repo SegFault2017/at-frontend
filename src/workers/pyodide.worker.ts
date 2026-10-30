@@ -1,11 +1,13 @@
 // Worker context — postMessage and onmessage are available globally
+import type { FromWorker, ToWorker } from "@/lib/pyodideRunner";
+
 declare function importScripts(...urls: string[]): void;
-declare function postMessage(message: unknown): void;
+declare function postMessage(message: FromWorker): void;
 
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.27.4/full/pyodide.js");
 
 interface PyodideInstance {
-  setInterruptBuffer(buffer: ArrayBuffer): void;
+  setInterruptBuffer(buffer: Uint8Array): void;
   setStdout(options: { raw: (charCode: number) => void }): void;
   setStderr(options: { raw: (charCode: number) => void }): void;
   loadPackagesFromImports(code: string): Promise<void>;
@@ -35,25 +37,17 @@ function getPyodide(): Promise<PyodideInstance> {
   return pyodideReady;
 }
 
-interface WorkerMessage {
-  type: string;
-  id: string;
-  code: string;
-  buffer?: ArrayBuffer;
-}
+onmessage = async (event: MessageEvent<ToWorker>) => {
+  const msg = event.data;
 
-onmessage = async (event: MessageEvent<WorkerMessage>) => {
-  const { type, id, code } = event.data;
-
-  if (type === "setInterruptBuffer") {
+  if (msg.type === "setInterruptBuffer") {
     const pyodide = await getPyodide();
-    if (event.data.buffer) {
-      pyodide.setInterruptBuffer(event.data.buffer);
-    }
+    pyodide.setInterruptBuffer(msg.buffer);
     return;
   }
 
-  if (type === "run") {
+  if (msg.type === "run") {
+    const { id, code } = msg;
     let stdoutBuffer = "";
 
     try {
