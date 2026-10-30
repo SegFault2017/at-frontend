@@ -52,7 +52,7 @@ export default function CodeEditor({ value, onChange }: CodeEditorProps) {
       onChange={(v) => onChange(v ?? "")}
       onMount={handleMount}
       options={{
-        fontSize: 14,
+        fontSize: 16,
         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
         minimap: { enabled: false },
         scrollBeyondLastLine: false,
