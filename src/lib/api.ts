@@ -42,6 +42,7 @@ export interface ProblemListItem {
   slug: string;
   title: string;
   difficulty: string;
+  topic_tags: string[];
 }
 
 export type CaseCategory = "normal" | "edge" | "stress";

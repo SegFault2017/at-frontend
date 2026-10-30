@@ -27,7 +27,7 @@ export function Timer({ seconds, onExpire }: Props) {
   const isWarning = remaining <= 60;
 
   return (
-    <div className={`font-mono text-lg font-bold ${isWarning ? "text-red-500" : "text-[#ebdbb2]"}`}>
+    <div className={`font-mono text-lg font-bold ${isWarning ? "text-gruvbox-red" : "text-gruvbox-fg-light"}`}>
       {mins}:{secs.toString().padStart(2, "0")}
     </div>
   );

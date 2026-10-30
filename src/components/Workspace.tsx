@@ -316,7 +316,7 @@ function ProblemSession({
       {/* Bottom toolbar */}
       <footer className="flex items-center gap-3 border-t border-gruvbox-gray-light px-6 py-3">
         {timeLimitSeconds !== undefined && (
-          <div className="rounded bg-[#282828] px-3 py-1">
+          <div className="rounded bg-gruvbox-bg-dark px-3 py-1">
             <Timer seconds={timeLimitSeconds} onExpire={handleExpire} />
           </div>
         )}
@@ -324,7 +324,7 @@ function ProblemSession({
         {pyodideStatus === 'error' ? (
           <button
             onClick={onRetryPyodide}
-            className="rounded-lg bg-gruvbox-red px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="rounded-lg bg-gruvbox-red px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90"
           >
             Python Failed — Retry
           </button>
@@ -332,7 +332,7 @@ function ProblemSession({
           <button
             onClick={handleRunTests}
             disabled={runningTests || testCases.length === 0 || pyodideStatus !== 'ready'}
-            className="rounded-lg bg-gruvbox-green px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-gruvbox-green px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90 disabled:opacity-50"
           >
             {pyodideStatus === 'loading'
               ? "Initializing Python..."
@@ -344,7 +344,7 @@ function ProblemSession({
         <button
           onClick={() => handleGetHint()}
           disabled={!problem || hintLoading || hints.length >= 8}
-          className="rounded-lg bg-gruvbox-yellow px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="rounded-lg bg-gruvbox-yellow px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90 disabled:opacity-50"
         >
           {hintLoading
             ? "Thinking..."
@@ -355,7 +355,7 @@ function ProblemSession({
         <button
           onClick={handleSubmit}
           disabled={!problem || sub.submitting}
-          className="rounded-lg bg-gruvbox-aqua px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="rounded-lg bg-gruvbox-aqua px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90 disabled:opacity-50"
         >
           {sub.submitting ? "Submitting..." : "Submit"}
         </button>

@@ -131,7 +131,7 @@ export default function ProblemPanel({
               <h3 className="mb-2 text-sm font-medium text-gruvbox-gray">
                 Description
               </h3>
-              <div className="prose prose-sm max-w-none rounded-lg bg-white p-4 text-gruvbox-fg shadow-sm">
+              <div className="prose prose-sm max-w-none rounded-lg border border-gruvbox-gray-light bg-gruvbox-bg-dark p-4 text-gruvbox-fg">
                 <ReactMarkdown>{cleanDescription}</ReactMarkdown>
               </div>
             </section>
@@ -142,7 +142,7 @@ export default function ProblemPanel({
                 <h3 className="mb-2 text-sm font-medium text-gruvbox-gray">
                   Constraints
                 </h3>
-                <ul className="space-y-1 rounded-lg bg-white p-4 shadow-sm">
+                <ul className="space-y-1 rounded-lg border border-gruvbox-gray-light bg-gruvbox-bg-dark p-4">
                   {problem.constraints.map((constraint, i) => (
                     <li
                       key={i}
@@ -162,7 +162,7 @@ export default function ProblemPanel({
               problem.examples.map((example, i) => (
                 <div
                   key={i}
-                  className="rounded-lg bg-white p-4 shadow-sm"
+                  className="rounded-lg border border-gruvbox-gray-light bg-gruvbox-bg-dark p-4"
                 >
                   <div className="mb-2 text-sm font-medium text-gruvbox-fg">
                     Example {i + 1}

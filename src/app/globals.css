@@ -3,18 +3,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-gruvbox-bg: #fbf1c7;
-  --color-gruvbox-bg-dark: #282828;
-  --color-gruvbox-bg-dark-soft: #32302f;
-  --color-gruvbox-fg: #3c3836;
-  --color-gruvbox-fg-light: #ebdbb2;
-  --color-gruvbox-orange: #d65d0e;
-  --color-gruvbox-green: #98971a;
-  --color-gruvbox-red: #cc241d;
-  --color-gruvbox-yellow: #d79921;
-  --color-gruvbox-aqua: #689d6a;
-  --color-gruvbox-gray: #a89984;
-  --color-gruvbox-gray-light: #d5c4a1;
+  /* Token names predate the switch to a black/neutral palette; values are what count */
+  --color-gruvbox-bg: #0a0a0a;
+  --color-gruvbox-bg-soft: #171717;
+  --color-gruvbox-bg-dark: #111111;
+  --color-gruvbox-bg-dark-soft: #171717;
+  --color-gruvbox-fg: #f5f5f5;
+  --color-gruvbox-fg-light: #e5e5e5;
+  --color-gruvbox-orange: #fafafa; /* accent: white, as primary buttons and active tabs */
+  --color-gruvbox-green: #22c55e;
+  --color-gruvbox-red: #f43f5e;
+  --color-gruvbox-yellow: #f59e0b;
+  --color-gruvbox-aqua: #22d3ee;
+  --color-gruvbox-blue: #60a5fa;
+  --color-gruvbox-purple: #a78bfa;
+  --color-gruvbox-gray: #a3a3a3;
+  --color-gruvbox-gray-light: #262626;
 
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
 }
