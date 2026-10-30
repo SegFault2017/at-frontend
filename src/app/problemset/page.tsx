@@ -36,16 +36,16 @@ export default function ProblemSetPage() {
   }
 
   if (!isSignedIn) {
-    return <div className="p-8 text-[#3c3836]">Please log in to use problem sets.</div>;
+    return <div className="p-8 text-gruvbox-fg">Please log in to use problem sets.</div>;
   }
 
   if (problemSet && currentIndex >= problemSet.problems.length) {
     return (
-      <div className="p-8 text-[#3c3836]">
+      <div className="p-8 text-gruvbox-fg">
         <h1 className="text-2xl font-bold mb-4">Problem set complete!</h1>
         <button
           onClick={() => setProblemSet(null)}
-          className="px-4 py-2 bg-[#458588] text-white rounded"
+          className="px-4 py-2 bg-gruvbox-orange text-gruvbox-bg rounded"
         >
           Generate another
         </button>
@@ -56,13 +56,13 @@ export default function ProblemSetPage() {
   if (!problemSet) {
     return (
       <div className="p-8">
-        <h1 className="text-2xl font-bold mb-6 text-[#3c3836]">AI Problem Set</h1>
+        <h1 className="text-2xl font-bold mb-6 text-gruvbox-fg">AI Problem Set</h1>
         <div className="flex gap-4 mb-6">
-          {(["drill", "interview_sim"] as ProblemSetMode[]).map((m) => (
+          {(["drill", "interview_sim"] satisfies ProblemSetMode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`px-4 py-2 rounded ${mode === m ? "bg-[#458588] text-white" : "bg-[#ebdbb2] text-[#3c3836]"}`}
+              className={`px-4 py-2 rounded ${mode === m ? "bg-gruvbox-orange text-gruvbox-bg" : "bg-gruvbox-gray-light text-gruvbox-fg"}`}
             >
               {m === "drill" ? "Drill Weaknesses" : "Interview Simulation"}
             </button>
@@ -71,12 +71,12 @@ export default function ProblemSetPage() {
         <button
           onClick={handleGenerate}
           disabled={loading}
-          className="px-6 py-3 bg-[#98971a] text-white rounded font-semibold disabled:opacity-50"
+          className="px-6 py-3 bg-gruvbox-green text-gruvbox-bg rounded font-semibold disabled:opacity-50"
         >
           {loading ? "Generating..." : "Generate Problem Set"}
         </button>
         {generateError && (
-          <p className="mt-3 text-sm text-red-500">{generateError}</p>
+          <p className="mt-3 text-sm text-gruvbox-red">{generateError}</p>
         )}
       </div>
     );
@@ -87,13 +87,13 @@ export default function ProblemSetPage() {
   return (
     <div className="flex h-screen flex-col">
       <header className="flex items-center gap-4 border-b border-gruvbox-gray-light px-6 py-3">
-        <span className="text-[#7c6f64]">
+        <span className="text-gruvbox-gray">
           Problem {currentIndex + 1} of {problemSet.problems.length}
         </span>
-        <span className="font-medium text-[#3c3836]">{current.title} · {current.difficulty}</span>
+        <span className="font-medium text-gruvbox-fg">{current.title} · {current.difficulty}</span>
         <button
           onClick={() => setCurrentIndex((i) => i + 1)}
-          className="px-4 py-1.5 bg-[#458588] text-white text-sm rounded"
+          className="px-4 py-1.5 bg-gruvbox-orange text-gruvbox-bg text-sm rounded"
         >
           {isLast ? "Finish" : "Next problem"}
         </button>
@@ -101,8 +101,7 @@ export default function ProblemSetPage() {
       </header>
       <Workspace
         slug={current.slug}
-        problemSetId={problemSet.id}
-        timeLimitSeconds={current.time_limit_seconds}
+        problemSet={{ id: problemSet.id, timeLimitSeconds: current.time_limit_seconds }}
       />
     </div>
   );

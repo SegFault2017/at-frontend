@@ -27,18 +27,18 @@ export default function ProfilePage() {
   }, [isLoaded, isSignedIn]);
 
   if (!isLoaded || loading) {
-    return <div className="p-8 text-[#7c6f64]">Loading...</div>;
+    return <div className="p-8 text-gruvbox-gray">Loading...</div>;
   }
 
   if (!isSignedIn) {
-    return <div className="p-8 text-[#3c3836]">Please log in to view your profile.</div>;
+    return <div className="p-8 text-gruvbox-fg">Please log in to view your profile.</div>;
   }
 
   return (
     <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6 text-[#3c3836]">Your Mastery</h1>
+      <h1 className="text-2xl font-bold mb-6 text-gruvbox-fg">Your Mastery</h1>
       {error ? (
-        <p className="text-red-500 text-sm">{error}</p>
+        <p className="text-gruvbox-red text-sm">{error}</p>
       ) : (
         <MasteryChart data={mastery} />
       )}

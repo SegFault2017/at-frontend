@@ -16,17 +16,8 @@ export interface TestCase {
   id: string;
   input: string;
   expected: string;
-  actual?: string;
-  passed?: boolean | null; // null = not run yet
-  status: 'pending' | 'running' | 'completed';
   isCustom: boolean;
-}
-
-export interface HintResponse {
-  hint: string;
-  hint_level: number;
-  cached?: boolean;
-  cost_usd?: number;
+  run: { kind: "pending" } | { kind: "running" } | { kind: "done"; actual: string; passed: boolean };
 }
 
 export interface ReviewResponse {
@@ -38,11 +29,7 @@ export interface ReviewResponse {
   cost_usd?: number;
 }
 
-export interface ProblemListItem {
-  slug: string;
-  title: string;
-  difficulty: string;
-}
+export type ProblemListItem = Pick<Problem, "slug" | "title" | "difficulty" | "topic_tags">;
 
 export type CaseCategory = "normal" | "edge" | "stress";
 
@@ -95,18 +82,29 @@ export async function fetchProblem(slug: string): Promise<Problem> {
  * @param onDone - Called when streaming completes
  * @param onCost - Called with cost in USD when the stream ends
  */
-export async function fetchHintStream(
-  problemSummary: string,
-  problemDescription: string,
-  userCode: string,
-  hintLevel: number,
-  previousHints: string[],
-  onChunk: (text: string) => void,
-  onDone: () => void,
-  leetcodeHints: string[] = [],
-  onCost?: (costUsd: number) => void,
-  failingCase?: FailingCase
-): Promise<void> {
+export async function fetchHintStream({
+  problemSummary,
+  problemDescription,
+  userCode,
+  hintLevel,
+  previousHints,
+  leetcodeHints = [],
+  failingCase,
+  onChunk,
+  onDone,
+  onCost,
+}: {
+  problemSummary: string;
+  problemDescription: string;
+  userCode: string;
+  hintLevel: number;
+  previousHints: string[];
+  leetcodeHints?: string[];
+  failingCase?: FailingCase;
+  onChunk: (text: string) => void;
+  onDone: () => void;
+  onCost?: (costUsd: number) => void;
+}): Promise<void> {
   const res = await fetch(`${API_BASE}/api/hint/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -159,11 +157,15 @@ export async function fetchHintStream(
  * Pre-generate all 3 hint levels in the background.
  * Call this when a problem loads to warm the cache.
  */
-export async function pregenerateHints(
-  problemSummary: string,
-  problemDescription: string,
-  userCode: string
-): Promise<void> {
+export async function pregenerateHints({
+  problemSummary,
+  problemDescription,
+  userCode,
+}: {
+  problemSummary: string;
+  problemDescription: string;
+  userCode: string;
+}): Promise<void> {
   // Fire and forget - we don't need the result, just warming the cache
   fetch(`${API_BASE}/api/hints/pregenerate`, {
     method: "POST",
@@ -194,12 +196,17 @@ export async function submitCode(slug: string, code: string): Promise<SubmitResu
   return res.json();
 }
 
-export async function fetchReview(
-  slug: string,
-  problemSummary: string,
-  userCode: string,
-  submission: SubmitResult
-): Promise<ReviewResponse> {
+export async function fetchReview({
+  slug,
+  problemSummary,
+  userCode,
+  submission,
+}: {
+  slug: string;
+  problemSummary: string;
+  userCode: string;
+  submission: SubmitResult;
+}): Promise<ReviewResponse> {
   const res = await fetch(`${API_BASE}/api/review`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

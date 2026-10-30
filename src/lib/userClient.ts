@@ -77,3 +77,8 @@ export const getMastery = (token: string) => authed<MasteryEntry[]>(token, "/use
 
 export const saveProblemSet = (token: string, mode: string, problems: PlannedProblem[]) =>
   authed<ProblemSet>(token, "/problemsets", { mode, problems });
+
+export type Attempt = AttemptPayload & { id: string; mode: "free" | "problem_set" };
+
+/** Newest first. */
+export const getAttempts = (token: string) => authed<Attempt[]>(token, "/users/me/attempts");

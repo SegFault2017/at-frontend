@@ -9,7 +9,7 @@ const GRUVBOX_DARK_THEME: editor.IStandaloneThemeData = {
   base: "vs-dark",
   inherit: true,
   rules: [
-    { token: "", foreground: "ebdbb2", background: "282828" },
+    { token: "", foreground: "e5e5e5", background: "111111" },
     { token: "comment", foreground: "928374", fontStyle: "italic" },
     { token: "keyword", foreground: "fb4934" },
     { token: "string", foreground: "b8bb26" },
@@ -20,13 +20,13 @@ const GRUVBOX_DARK_THEME: editor.IStandaloneThemeData = {
     { token: "operator", foreground: "fe8019" },
   ],
   colors: {
-    "editor.background": "#282828",
-    "editor.foreground": "#ebdbb2",
-    "editor.lineHighlightBackground": "#32302f",
-    "editor.selectionBackground": "#504945",
-    "editorCursor.foreground": "#ebdbb2",
-    "editorLineNumber.foreground": "#665c54",
-    "editorLineNumber.activeForeground": "#a89984",
+    "editor.background": "#111111",
+    "editor.foreground": "#e5e5e5",
+    "editor.lineHighlightBackground": "#171717",
+    "editor.selectionBackground": "#262626",
+    "editorCursor.foreground": "#e5e5e5",
+    "editorLineNumber.foreground": "#525252",
+    "editorLineNumber.activeForeground": "#a3a3a3",
   },
 };
 
@@ -52,7 +52,7 @@ export default function CodeEditor({ value, onChange }: CodeEditorProps) {
       onChange={(v) => onChange(v ?? "")}
       onMount={handleMount}
       options={{
-        fontSize: 14,
+        fontSize: 16,
         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
         minimap: { enabled: false },
         scrollBeyondLastLine: false,

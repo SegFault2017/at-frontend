@@ -26,8 +26,8 @@ export function HeaderAuth() {
   return (
     <div className="ml-auto flex items-center gap-4 text-sm">
       <SignedIn>
-        <Link href="/problemset" className="text-gruvbox-fg hover:text-gruvbox-orange">Problem sets</Link>
-        <Link href="/profile" className="text-gruvbox-fg hover:text-gruvbox-orange">Mastery</Link>
+        <Link href="/problemset" className="hover:text-gruvbox-orange">Problem sets</Link>
+        <Link href="/profile" className="hover:text-gruvbox-orange">Mastery</Link>
         <UserButton />
       </SignedIn>
       <SignedOut>

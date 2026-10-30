@@ -9,19 +9,17 @@ import { ConfidenceModal } from "@/components/ConfidenceModal";
 import { Timer } from "@/components/Timer";
 import { useAuth } from "@/components/AuthProvider";
 import { runPython, terminateWorker, initializePyodide, retryInitialization } from "@/lib/pyodideRunner";
+import type { PyodideStatus } from "@/lib/pyodideRunner";
 import { fetchProblem, fetchHintStream, fetchReview, pregenerateHints } from "@/lib/api";
 import type { FailingCase, Problem, TestCase } from "@/lib/api";
 import { useSubmit } from "@/lib/useSubmit";
 import { attemptFrom, saveAttempt } from "@/lib/userClient";
 import type { AttemptPayload } from "@/lib/userClient";
 
-type PyodideStatus = 'loading' | 'ready' | 'error';
-
 interface Props {
   slug: string | null;
   initialCode?: string; // replaces the starter code once the problem loads
-  problemSetId?: string;
-  timeLimitSeconds?: number; // when set, time running out submits the editor's code
+  problemSet?: { id: string; timeLimitSeconds: number }; // time running out submits the editor's code
 }
 
 /** The editor, Run, Submit, hints and review for one problem. Free mode and each problem in a set both use it. */
@@ -48,8 +46,7 @@ export default function Workspace(props: Props) {
 function ProblemSession({
   slug,
   initialCode,
-  problemSetId,
-  timeLimitSeconds,
+  problemSet,
   pyodideStatus,
   onRetryPyodide,
 }: Props & { pyodideStatus: PyodideStatus; onRetryPyodide: () => void }) {
@@ -95,13 +92,12 @@ function ProblemSession({
           id: `example-${i}`,
           input: ex.input || "",
           expected: ex.output || "",
-          passed: null,
-          status: 'pending',
           isCustom: false,
+          run: { kind: "pending" },
         })));
 
         // Pre-generate hints in the background (fire and forget)
-        pregenerateHints(p.title, p.description, starterCode);
+        pregenerateHints({ problemSummary: p.title, problemDescription: p.description, userCode: starterCode });
       })
       .catch((e: unknown) => setProblemError(e instanceof Error ? e.message : "Unknown error"))
       .finally(() => setProblemLoading(false));
@@ -118,7 +114,7 @@ function ProblemSession({
 
     // Set all tests to 'running' status
     setTestCases((prev) =>
-      prev.map((tc) => ({ ...tc, status: 'running' as const, passed: null, actual: undefined }))
+      prev.map((tc) => ({ ...tc, run: { kind: "running" } }))
     );
 
     const outputLines: string[] = [];
@@ -138,7 +134,7 @@ function ProblemSession({
       // Update this specific test case immediately
       setTestCases((prev) =>
         prev.map((prevTc, idx) =>
-          idx === i ? { ...prevTc, actual, passed, status: 'completed' as const } : prevTc
+          idx === i ? { ...prevTc, run: { kind: "done", actual, passed } } : prevTc
         )
       );
       setCompletedTests((prev) => prev + 1);
@@ -157,9 +153,8 @@ function ProblemSession({
       id: `custom-${Date.now()}`,
       input,
       expected,
-      passed: null,
-      status: 'pending',
       isCustom: true,
+      run: { kind: "pending" },
     };
     setTestCases((prev) => [...prev, newTestCase]);
   }
@@ -184,7 +179,7 @@ function ProblemSession({
     const attempt = attemptFrom(res, {
       slug: problem.slug,
       topic_tags: problem.topic_tags,
-      problem_set_id: problemSetId,
+      problem_set_id: problemSet?.id,
       started_at: openedAt.toISOString(),
       submit_index: submitIndex,
       hints_used: hints.length,
@@ -213,29 +208,26 @@ function ProblemSession({
 
     try {
       let fullHint = "";
-      await fetchHintStream(
-        problem.title,
-        problem.description,
-        code,
-        level,
-        hints,
-        // onChunk: update streaming text as it arrives
-        (chunk) => {
+      await fetchHintStream({
+        problemSummary: problem.title,
+        problemDescription: problem.description,
+        userCode: code,
+        hintLevel: level,
+        previousHints: hints,
+        // LeetCode's official hints, for context
+        leetcodeHints: problem.hints,
+        failingCase,
+        onChunk: (chunk) => {
           fullHint += chunk;
           setStreamingHint(fullHint);
         },
-        // onDone: finalize the hint
-        () => {
+        onDone: () => {
           setHints((prev) => [...prev, fullHint]);
           setStreamingHint("");
           setHintLoading(false);
         },
-        // Pass LeetCode official hints for context
-        problem.hints,
-        // onCost: accumulate token cost
-        (cost) => setTotalCost((prev) => prev + cost),
-        failingCase
-      );
+        onCost: (cost) => setTotalCost((prev) => prev + cost),
+      });
     } catch {
       setHints((prev) => [...prev, "Failed to get hint. Please try again."]);
       setStreamingHint("");
@@ -248,9 +240,10 @@ function ProblemSession({
     setReviewLoading(true);
 
     try {
-      const res = await fetchReview(problem.slug, problem.title, code, done.result);
+      const res = await fetchReview({ slug: problem.slug, problemSummary: problem.title, userCode: code, submission: done.result });
       sub.setReview(res);
-      if (res.cost_usd) setTotalCost((prev) => prev + res.cost_usd!);
+      const cost = res.cost_usd;
+      if (cost) setTotalCost((prev) => prev + cost);
     } catch {
       sub.setReview({ status: "error", feedback: "Failed to get review. Please try again." });
     } finally {
@@ -315,16 +308,16 @@ function ProblemSession({
 
       {/* Bottom toolbar */}
       <footer className="flex items-center gap-3 border-t border-gruvbox-gray-light px-6 py-3">
-        {timeLimitSeconds !== undefined && (
-          <div className="rounded bg-[#282828] px-3 py-1">
-            <Timer seconds={timeLimitSeconds} onExpire={handleExpire} />
+        {problemSet && (
+          <div className="rounded bg-gruvbox-bg-dark px-3 py-1">
+            <Timer seconds={problemSet.timeLimitSeconds} onExpire={handleExpire} />
           </div>
         )}
         {expired && <span className="text-sm text-gruvbox-red">Time&apos;s up. Your code was submitted.</span>}
         {pyodideStatus === 'error' ? (
           <button
             onClick={onRetryPyodide}
-            className="rounded-lg bg-gruvbox-red px-4 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="rounded-lg bg-gruvbox-red px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90"
           >
             Python Failed — Retry
           </button>
@@ -332,7 +325,7 @@ function ProblemSession({
           <button
             onClick={handleRunTests}
             disabled={runningTests || testCases.length === 0 || pyodideStatus !== 'ready'}
-            className="rounded-lg bg-gruvbox-green px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-gruvbox-green px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90 disabled:opacity-50"
           >
             {pyodideStatus === 'loading'
               ? "Initializing Python..."
@@ -344,7 +337,7 @@ function ProblemSession({
         <button
           onClick={() => handleGetHint()}
           disabled={!problem || hintLoading || hints.length >= 8}
-          className="rounded-lg bg-gruvbox-yellow px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="rounded-lg bg-gruvbox-yellow px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90 disabled:opacity-50"
         >
           {hintLoading
             ? "Thinking..."
@@ -355,7 +348,7 @@ function ProblemSession({
         <button
           onClick={handleSubmit}
           disabled={!problem || sub.submitting}
-          className="rounded-lg bg-gruvbox-aqua px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="rounded-lg bg-gruvbox-aqua px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90 disabled:opacity-50"
         >
           {sub.submitting ? "Submitting..." : "Submit"}
         </button>
