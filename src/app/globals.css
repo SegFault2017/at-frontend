@@ -3,22 +3,22 @@
 @import "tailwindcss";
 
 @theme {
-  /* The gruvbox-* names are older than this black/neutral palette and no longer describe the colours */
-  --color-gruvbox-bg: #0a0a0a;
-  --color-gruvbox-bg-soft: #171717;
-  --color-gruvbox-bg-dark: #111111;
-  --color-gruvbox-bg-dark-soft: #171717;
-  --color-gruvbox-fg: #f5f5f5;
-  --color-gruvbox-fg-light: #e5e5e5;
-  --color-gruvbox-orange: #fafafa; /* The accent is white, for primary buttons and active tabs */
-  --color-gruvbox-green: #22c55e;
-  --color-gruvbox-red: #f43f5e;
-  --color-gruvbox-yellow: #f59e0b;
-  --color-gruvbox-aqua: #22d3ee;
-  --color-gruvbox-blue: #60a5fa;
-  --color-gruvbox-purple: #a78bfa;
-  --color-gruvbox-gray: #a3a3a3;
-  --color-gruvbox-gray-light: #262626;
+  /* Catppuccin Mocha. The gruvbox-* names are older than this palette and no longer describe the colours */
+  --color-gruvbox-bg: #1e1e2e; /* base */
+  --color-gruvbox-bg-soft: #313244; /* surface0 */
+  --color-gruvbox-bg-dark: #181825; /* mantle */
+  --color-gruvbox-bg-dark-soft: #11111b; /* crust */
+  --color-gruvbox-fg: #cdd6f4; /* text */
+  --color-gruvbox-fg-light: #bac2de; /* subtext1 */
+  --color-gruvbox-orange: #cba6f7; /* mauve, the accent for primary buttons and active tabs */
+  --color-gruvbox-green: #a6e3a1;
+  --color-gruvbox-red: #f38ba8;
+  --color-gruvbox-yellow: #f9e2af;
+  --color-gruvbox-aqua: #94e2d5; /* teal */
+  --color-gruvbox-blue: #89b4fa;
+  --color-gruvbox-purple: #b4befe; /* lavender */
+  --color-gruvbox-gray: #a6adc8; /* subtext0 */
+  --color-gruvbox-gray-light: #313244; /* surface0, for borders and tracks */
 
   /* One step up from Tailwind's defaults so the pixel font stays legible */
   --text-xs: 0.875rem;

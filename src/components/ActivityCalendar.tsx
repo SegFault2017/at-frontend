@@ -4,7 +4,7 @@ import { useState } from "react";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 // Cell shade by problems solved that day: 0, 1, 2, 3, 4+
-const SHADES = ["bg-neutral-900", "bg-emerald-900", "bg-emerald-700", "bg-emerald-500", "bg-emerald-400"];
+const SHADES = ["bg-gruvbox-bg-soft", "bg-gruvbox-green/25", "bg-gruvbox-green/50", "bg-gruvbox-green/75", "bg-gruvbox-green"];
 
 /** Local YYYY-MM-DD, the key `solvedByDay` is expected to use. */
 export const dayKey = (d: Date) =>
@@ -22,18 +22,18 @@ export default function ActivityCalendar({ solvedByDay }: { solvedByDay: Map<str
 
   return (
     <div className="text-center">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Activity</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-gruvbox-gray">Activity</h2>
       <div className="mt-3 flex items-center justify-between">
-        <button onClick={() => shift(-1)} aria-label="Previous month" className="px-2 text-neutral-400 hover:text-white">‹</button>
+        <button onClick={() => shift(-1)} aria-label="Previous month" className="px-2 text-gruvbox-gray hover:text-gruvbox-fg">‹</button>
         <div>
           <div className="font-semibold">{month.toLocaleString(undefined, { month: "long", year: "numeric" })}</div>
-          <div className="text-xs text-neutral-400">{solvedThisMonth} solved this month</div>
+          <div className="text-xs text-gruvbox-gray">{solvedThisMonth} solved this month</div>
         </div>
-        <button onClick={() => shift(1)} aria-label="Next month" className="px-2 text-neutral-400 hover:text-white">›</button>
+        <button onClick={() => shift(1)} aria-label="Next month" className="px-2 text-gruvbox-gray hover:text-gruvbox-fg">›</button>
       </div>
       <div className="mt-3 grid grid-cols-7 gap-1 text-xs">
         {WEEKDAYS.map((w, i) => (
-          <div key={i} className="py-1 text-neutral-500">{w}</div>
+          <div key={i} className="py-1 text-gruvbox-gray">{w}</div>
         ))}
         {/* Blank cells push day 1 under its weekday */}
         {Array.from({ length: month.getDay() }, (_, i) => <div key={`pad${i}`} />)}
@@ -45,7 +45,7 @@ export default function ActivityCalendar({ solvedByDay }: { solvedByDay: Map<str
               key={key}
               title={`${solved} solved`}
               className={`flex aspect-square items-center justify-center ${SHADES[Math.min(solved, 4)]} ${
-                key === dayKey(today) ? "ring-2 ring-cyan-400" : ""
+                key === dayKey(today) ? "ring-2 ring-gruvbox-orange" : ""
               }`}
             >
               {d.getDate()}
@@ -53,7 +53,7 @@ export default function ActivityCalendar({ solvedByDay }: { solvedByDay: Map<str
           );
         })}
       </div>
-      <div className="mt-3 flex items-center justify-end gap-1 text-xs text-neutral-500">
+      <div className="mt-3 flex items-center justify-end gap-1 text-xs text-gruvbox-gray">
         Less {SHADES.map((s) => <span key={s} className={`h-2.5 w-2.5 ${s}`} />)} More
       </div>
     </div>
