@@ -10,9 +10,9 @@ import ActivityCalendar, { dayKey } from "@/components/ActivityCalendar";
 
 const DIFFICULTIES = ["Easy", "Medium", "Hard"];
 const DIFFICULTY_COLOR: Record<string, string> = {
-  easy: "text-emerald-400 border-emerald-400/40",
-  medium: "text-amber-400 border-amber-400/40",
-  hard: "text-rose-400 border-rose-400/40",
+  easy: "text-gruvbox-green border-gruvbox-green/40",
+  medium: "text-gruvbox-yellow border-gruvbox-yellow/40",
+  hard: "text-gruvbox-red border-gruvbox-red/40",
 };
 const DIFFICULTY_RANK: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
 
@@ -20,11 +20,11 @@ const SORTS = ["id", "title", "difficulty"] as const;
 type Sort = (typeof SORTS)[number];
 
 const control =
-  "rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 focus:border-neutral-500 focus:outline-none";
-const card = "rounded-xl border border-neutral-800 bg-neutral-950";
+  "rounded-lg border border-gruvbox-gray-light bg-gruvbox-bg-soft px-3 py-2 text-sm text-gruvbox-fg focus:border-gruvbox-orange focus:outline-none";
+const card = "rounded-xl border border-gruvbox-gray-light bg-gruvbox-bg";
 const pill = (on: boolean) =>
   `rounded-full border px-3 py-1 text-xs ${
-    on ? "border-white bg-white text-black" : "border-neutral-800 text-neutral-300 hover:border-neutral-600"
+    on ? "border-gruvbox-orange bg-gruvbox-orange text-gruvbox-bg" : "border-gruvbox-gray-light text-gruvbox-fg-light hover:border-gruvbox-gray/50"
   }`;
 
 /** The catalog as a filterable table, numbered in catalog order, with the learner's progress beside it. Picking a row loads that problem. */
@@ -136,27 +136,27 @@ export default function ProblemList({
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto bg-neutral-950 text-neutral-100">
+    <div className="flex-1 overflow-y-auto bg-gruvbox-bg text-gruvbox-fg">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[1fr_20rem]">
         <main className="min-w-0">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Problems</h1>
-              <p className="mt-1 text-sm text-neutral-400">
-                <span className="font-semibold text-white">{solvedCount}</span> of {catalog.length} solved ·{" "}
+              <p className="mt-1 text-sm text-gruvbox-gray">
+                <span className="font-semibold text-gruvbox-fg">{solvedCount}</span> of {catalog.length} solved ·{" "}
                 {percent.toFixed(2)}% complete
               </p>
             </div>
             {daily && (
               <div className="flex items-center gap-3">
-                <span aria-hidden className="border border-neutral-800 bg-neutral-900 px-2 py-1">🔥</span>
+                <span aria-hidden className="border border-gruvbox-gray-light bg-gruvbox-bg-soft px-2 py-1">🔥</span>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Daily challenge</div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-gruvbox-gray">Daily challenge</div>
                   <div className="font-semibold">{daily.title}</div>
                 </div>
                 <button
                   onClick={() => onPick(daily.slug)}
-                  className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-black hover:bg-neutral-200"
+                  className="rounded-lg bg-gruvbox-orange px-3 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90"
                 >
                   Solve →
                 </button>
@@ -169,11 +169,11 @@ export default function ProblemList({
               const inner = (
                 <>
                   <div className="font-mono font-bold">{f.title}</div>
-                  <p className="mt-2 line-clamp-2 text-sm text-neutral-400">{f.body}</p>
-                  <div className="mt-4 font-mono text-xs text-neutral-300">{f.cta} →</div>
+                  <p className="mt-2 line-clamp-2 text-sm text-gruvbox-gray">{f.body}</p>
+                  <div className="mt-4 font-mono text-xs text-gruvbox-fg-light">{f.cta} →</div>
                 </>
               );
-              const cls = `${card} block p-4 text-left hover:border-neutral-600`;
+              const cls = `${card} block p-4 text-left hover:border-gruvbox-gray/50`;
               return f.href ? (
                 <Link key={f.title} href={f.href} className={cls}>{inner}</Link>
               ) : (
@@ -190,7 +190,7 @@ export default function ProblemList({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search problems..."
                 aria-label="Search problems"
-                className={`${control} min-w-48 flex-1 placeholder-neutral-500`}
+                className={`${control} min-w-48 flex-1 placeholder-gruvbox-gray`}
               />
               <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Category" className={control}>
                 <option value="">Select Category</option>
@@ -205,7 +205,7 @@ export default function ProblemList({
               </select>
               <button
                 onClick={() => pickFrom(rows)}
-                className="rounded-lg border border-neutral-800 px-3 py-2 text-sm font-medium hover:border-neutral-600"
+                className="rounded-lg border border-gruvbox-gray-light px-3 py-2 text-sm font-medium hover:border-gruvbox-gray/50"
               >
                 ⤨ Random
               </button>
@@ -224,7 +224,7 @@ export default function ProblemList({
               <button onClick={() => setUnsolvedOnly((u) => !u)} aria-pressed={unsolvedOnly} className={pill(unsolvedOnly)}>
                 Unsolved
               </button>
-              <span aria-hidden className="mx-1 h-5 w-px bg-neutral-800" />
+              <span aria-hidden className="mx-1 h-5 w-px bg-gruvbox-gray-light" />
               {DIFFICULTIES.map((d) => (
                 <button
                   key={d}
@@ -241,8 +241,8 @@ export default function ProblemList({
 
           <div className={`${card} mt-6 overflow-x-auto`}>
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-neutral-400">
-                <tr className="border-b border-neutral-800">
+              <thead className="text-left text-xs uppercase tracking-wider text-gruvbox-gray">
+                <tr className="border-b border-gruvbox-gray-light">
                   <th className="px-4 py-3 font-medium">#</th>
                   <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Difficulty</th>
@@ -255,9 +255,9 @@ export default function ProblemList({
                   <tr
                     key={p.slug}
                     onClick={() => onPick(p.slug)}
-                    className="cursor-pointer border-b border-neutral-900 last:border-0 hover:bg-neutral-900"
+                    className="cursor-pointer border-b border-gruvbox-gray-light/50 last:border-0 hover:bg-gruvbox-bg-soft"
                   >
-                    <td className="px-4 py-3 text-neutral-400">{p.id}</td>
+                    <td className="px-4 py-3 text-gruvbox-gray">{p.id}</td>
                     <td className="px-4 py-3 font-medium">
                       {/* A real link so rows are reachable by keyboard */}
                       <a
@@ -275,27 +275,28 @@ export default function ProblemList({
                     <td className="px-4 py-3">
                       {p.difficulty && (
                         <span
-                          className={`rounded-full border px-2 py-0.5 text-xs lowercase ${
-                            DIFFICULTY_COLOR[p.difficulty.toLowerCase()] ?? "border-neutral-700"
+                          className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs lowercase ${
+                            DIFFICULTY_COLOR[p.difficulty.toLowerCase()] ?? "border-gruvbox-gray/50"
                           }`}
                         >
-                          ● {p.difficulty}
+                          <span aria-hidden className="text-[0.6em]">●</span>
+                          {p.difficulty}
                         </span>
                       )}
                     </td>
-                    <td className="max-w-48 truncate px-4 py-3 text-neutral-300">{p.topic_tags[0] ?? ""}</td>
+                    <td className="max-w-48 truncate px-4 py-3 text-gruvbox-fg-light">{p.topic_tags[0] ?? ""}</td>
                     <td className="px-4 py-3 text-xs">
                       {solved.has(p.slug) ? (
-                        <span className="text-emerald-400">✓ Solved</span>
+                        <span className="text-gruvbox-green">✓ Solved</span>
                       ) : attempted.has(p.slug) ? (
-                        <span className="text-amber-400">Attempted</span>
+                        <span className="text-gruvbox-yellow">Attempted</span>
                       ) : null}
                     </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">No problems match.</td>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gruvbox-gray">No problems match.</td>
                   </tr>
                 )}
               </tbody>
@@ -307,30 +308,30 @@ export default function ProblemList({
           {isSignedIn ? (
             <>
               <section className={`${card} p-4`}>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Your progress</h2>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-gruvbox-gray">Your progress</h2>
                 <div className="mt-3 flex items-baseline justify-between">
                   <div>
                     <span className="text-2xl font-bold">{solvedCount}</span>
-                    <span className="text-sm text-neutral-400"> / {catalog.length}</span>
+                    <span className="text-sm text-gruvbox-gray"> / {catalog.length}</span>
                   </div>
-                  <span className="text-sm text-emerald-400">{percent.toFixed(2)}%</span>
+                  <span className="text-sm text-gruvbox-green">{percent.toFixed(2)}%</span>
                 </div>
-                <div className="mt-3 h-1.5 bg-neutral-800">
-                  <div className="h-full bg-emerald-400" style={{ width: `${percent}%` }} />
+                <div className="mt-3 h-1.5 bg-gruvbox-gray-light">
+                  <div className="h-full bg-gruvbox-green" style={{ width: `${percent}%` }} />
                 </div>
-                {attemptsError && <p className="mt-2 text-xs text-rose-400">Couldn&apos;t load your attempts.</p>}
+                {attemptsError && <p className="mt-2 text-xs text-gruvbox-red">Couldn&apos;t load your attempts.</p>}
               </section>
               <section className={`${card} p-4`}>
                 <ActivityCalendar solvedByDay={solvedByDay} />
               </section>
             </>
           ) : (
-            <section className={`${card} p-4 text-sm text-neutral-400`}>
+            <section className={`${card} p-4 text-sm text-gruvbox-gray`}>
               <h2 className="text-xs font-semibold uppercase tracking-wider">Your progress</h2>
               <p className="mt-2">Sign in to track solved problems and daily activity.</p>
               <Link
                 href="/login"
-                className="mt-3 block rounded-lg bg-white px-3 py-2 text-center font-medium text-black hover:bg-neutral-200"
+                className="mt-3 block rounded-lg bg-gruvbox-orange px-3 py-2 text-center font-medium text-gruvbox-bg hover:opacity-90"
               >
                 Sign in
               </Link>

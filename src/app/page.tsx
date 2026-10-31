@@ -45,8 +45,8 @@ export default function Home() {
   return (
     <div className="flex h-screen flex-col">
       {/* Header */}
-      <header className="flex items-center gap-4 border-b border-neutral-800 bg-black px-6 py-3 text-neutral-200">
-        <h1 className="text-xl font-bold tracking-tight text-white">
+      <header className="flex items-center gap-4 border-b border-gruvbox-gray-light bg-gruvbox-bg-dark px-6 py-3 text-gruvbox-fg-light">
+        <h1 className="text-xl font-bold tracking-tight text-gruvbox-fg">
           <button onClick={() => setSlug(null)} title="Back to problem list">Algo Trainer</button>
         </h1>
         <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export default function Home() {
             onKeyDown={(e) => e.key === "Enter" && handleLoadProblem()}
             placeholder={`Search ${catalog.length} problems`}
             aria-label="Search problems"
-            className="w-72 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100 placeholder-neutral-500 focus:border-neutral-500 focus:outline-none"
+            className="w-72 rounded-lg border border-gruvbox-gray-light bg-gruvbox-bg-soft px-3 py-1.5 text-sm text-gruvbox-fg placeholder-gruvbox-gray focus:border-gruvbox-orange focus:outline-none"
           />
           <datalist id="problem-catalog">
             {catalog.map((c) => (
@@ -71,18 +71,18 @@ export default function Home() {
           </datalist>
           <button
             onClick={() => handleLoadProblem()}
-            className="rounded-lg bg-white px-4 py-1.5 text-sm font-medium text-black hover:bg-neutral-200 disabled:opacity-50"
+            className="rounded-lg bg-gruvbox-orange px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90 disabled:opacity-50"
           >
             Load
           </button>
           <button
             onClick={handleLoadTwoSumTest}
-            className="rounded-lg bg-white px-4 py-1.5 text-sm font-medium text-black hover:bg-neutral-200 disabled:opacity-50"
+            className="rounded-lg bg-gruvbox-orange px-4 py-1.5 text-sm font-medium text-gruvbox-bg hover:opacity-90 disabled:opacity-50"
             title="Load Two Sum with working solution for testing"
           >
             Test: Two Sum
           </button>
-          {catalogError && <span className="text-sm text-rose-400">{catalogError}</span>}
+          {catalogError && <span className="text-sm text-gruvbox-red">{catalogError}</span>}
         </div>
         <HeaderAuth />
       </header>
